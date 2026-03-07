@@ -98,11 +98,11 @@ async function scoreOneHackathon(
     const total = Math.min(Math.round((ach + prs + pq + ow) * 10) / 10, MAX_RAW);
 
     const reasoning = [
-      `Ach:${ach}/7`,
-      `Prs:${prs}/3`,
-      `PQ:${pq}/3`,
-      `Own:${ow}/1`,
-    ].join(", ");
+      `Ach:${ach}/7 (${result.achievement?.reasoning || ""})`,
+      `Prs:${prs}/3 (${result.prestige?.reasoning || ""})`,
+      `PQ:${pq}/3 (${result.project_quality?.reasoning || ""})`,
+      `Own:${ow}/1 (${result.ownership?.reasoning || ""})`,
+    ].join(". ");
 
     return { total, reasoning };
   } catch (err) {
@@ -143,21 +143,21 @@ export async function scoreHackathons(
 
   if (scored.length === 1) {
     raw = scored[0].total;
-    detailParts = [`H1: ${scored[0].total}/14 (${scored[0].reasoning})`];
+    detailParts = [`H1: ${scored[0].total}/14 — ${scored[0].reasoning}`];
   } else if (scored.length === 2) {
     raw = Math.round((0.6 * scored[0].total + 0.4 * scored[1].total) * 10) / 10;
     detailParts = [
-      `H1(60%): ${scored[0].total}/14 (${scored[0].reasoning})`,
-      `H2(40%): ${scored[1].total}/14 (${scored[1].reasoning})`,
+      `H1(60%): ${scored[0].total}/14 — ${scored[0].reasoning}`,
+      `H2(40%): ${scored[1].total}/14 — ${scored[1].reasoning}`,
     ];
   } else {
     raw = Math.round(
       (0.5 * scored[0].total + 0.3 * scored[1].total + 0.2 * scored[2].total) * 10
     ) / 10;
     detailParts = [
-      `H1(50%): ${scored[0].total}/14 (${scored[0].reasoning})`,
-      `H2(30%): ${scored[1].total}/14 (${scored[1].reasoning})`,
-      `H3(20%): ${scored[2].total}/14 (${scored[2].reasoning})`,
+      `H1(50%): ${scored[0].total}/14 — ${scored[0].reasoning}`,
+      `H2(30%): ${scored[1].total}/14 — ${scored[1].reasoning}`,
+      `H3(20%): ${scored[2].total}/14 — ${scored[2].reasoning}`,
     ];
   }
 
