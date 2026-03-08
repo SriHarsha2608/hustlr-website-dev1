@@ -40,6 +40,15 @@ import { AwardsInput } from "./AwardsInput";
 import UploadFileInput from "./UploadFile";
 import { NextRouter } from "next/router";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
 const steps = [
   { 
@@ -104,6 +113,8 @@ export default function VettingForm({
   router: NextRouter;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const stepFields: Record<number, (keyof z.infer<typeof formSchema>)[]> = {
     0: ["category"],
@@ -503,12 +514,171 @@ export default function VettingForm({
               {/* Next */}
             </Button>
           ) : (
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Submitting..." : "Submit"}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsReviewOpen(true)}
+              >
+                Review
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Submitting..." : "Submit"}
+              </Button>
+            </div>
           )}
         </div>
       </form>
+
+      {/* Review Modal */}
+      <Dialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
+        <DialogContent className="max-w-3xl w-full">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-semibold">Review Your Application</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              Go through your details carefully before submitting.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[65vh] overflow-y-auto pr-2">
+            <div className="flex flex-col gap-8 py-2">
+
+              {/* Category */}
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Category</p>
+                <Separator />
+                <CategoryRadio form={form} />
+              </div>
+
+              {/* Personal Info */}
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Personal Info</p>
+                <Separator />
+                <NameInput form={form} />
+                <EmailInput form={form} />
+                <DobInput form={form} />
+                <PhoneInput form={form} />
+                <CollegeInput form={form} />
+                <CollegeEmailInput form={form} />
+                <DegreeInput form={form} />
+                <BranchInput form={form} />
+                <CollegeYearInput form={form} />
+                <CgpaInput form={form} />
+                <UploadFileInput title="Resume" form={form} email={email} name="resume" jwtToken={jwtToken} />
+                <UploadFileInput title="Transcript" form={form} email={email} name="transcript" jwtToken={jwtToken} />
+                <UploadFileInput title="Student ID" form={form} email={email} name="studentId" jwtToken={jwtToken} />
+              </div>
+
+              {/* Skills */}
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Skills &amp; Proficiency</p>
+                <Separator />
+                <SkillsProficiencyInput form={form} />
+              </div>
+
+              {/* Projects */}
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Projects</p>
+                <Separator />
+                <ProjectsInput form={form} />
+              </div>
+
+              {/* Experience */}
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Experience</p>
+                <Separator />
+                <ExperienceInput form={form} />
+              </div>
+
+              {/* Hackathons */}
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Hackathons</p>
+                <Separator />
+                <HackathonInput form={form} />
+              </div>
+
+              {/* Open Source */}
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Open Source</p>
+                <Separator />
+                <OpenSourceInput form={form} />
+              </div>
+
+              {/* Research & Competitive Programming */}
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Research &amp; Competitive Programming</p>
+                <Separator />
+                <ResearchCompetitiveInput form={form} />
+              </div>
+
+              {/* Links & Awards */}
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Links &amp; Awards</p>
+                <Separator />
+                <LinksInput form={form} />
+                <AwardsInput form={form} email={email} jwtToken={jwtToken} />
+              </div>
+
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2 justify-end pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={async () => {
+                await saveFormData();
+                setIsReviewOpen(false);
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                await saveFormData();
+                setIsReviewOpen(false);
+                setIsConfirmOpen(true);
+              }}
+            >
+              Submit Application
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Modal */}
+      <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <DialogContent className="max-w-md w-full">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Are you sure?</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Once you submit, you will not be able to edit your details in any further rounds.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsConfirmOpen(false);
+                setIsReviewOpen(true);
+              }}
+            >
+              No, wait
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={submitting}
+              onClick={() => {
+                setIsConfirmOpen(false);
+                onSubmit();
+              }}
+            >
+              {submitting ? "Submitting..." : "OK, Submit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Form>
   );
 }

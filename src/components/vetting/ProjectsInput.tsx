@@ -129,7 +129,11 @@ export function ProjectsInput({ form }: { form: FormFieldProp }) {
     if (!projectForm.type) errors.type = "Project type is required";
     if (!projectForm.members) errors.members = "Members is required";
     if (!projectForm.role) errors.role = "Your role is required";
-    if (!projectForm.description.trim()) errors.description = "Description is required";
+    if (!projectForm.description.trim()) {
+      errors.description = "Description is required";
+    } else if (projectForm.description.trim().split(/\s+/).filter(Boolean).length > 200) {
+      errors.description = "Description should not be more than 200 words";
+    }
     if (projectForm.techStack.length === 0) errors.techStack = "Add at least one technology";
     if (!projectForm.projectCategory) errors.projectCategory = "Project category is required";
     if (!projectForm.startMonth) errors.startMonth = "Start month is required";
@@ -315,6 +319,12 @@ export function ProjectsInput({ form }: { form: FormFieldProp }) {
                       value={projectForm.description}
                       onChange={(e) => {
                         setProjectForm(prev => ({ ...prev, description: e.target.value }));
+                        const wordCount = e.target.value.trim().split(/\s+/).filter(Boolean).length;
+                        if (wordCount > 200) {
+                          setFormErrors(prev => ({ ...prev, description: "Description should not be more than 200 words" }));
+                        } else {
+                          setFormErrors(prev => { const { description, ...rest } = prev; return rest; });
+                        }
                         // Auto-resize
                         e.target.style.height = "auto";
                         e.target.style.height = e.target.scrollHeight + "px";
@@ -323,6 +333,9 @@ export function ProjectsInput({ form }: { form: FormFieldProp }) {
                       className={cn("w-full min-h-[100px] resize-y whitespace-pre-wrap break-words", formErrors.description && "border-red-500")}
                       rows={4}
                     />
+                    <p className={cn("text-xs mt-1 text-right", projectForm.description.trim().split(/\s+/).filter(Boolean).length > 200 ? "text-red-500" : "text-gray-400")}>
+                      {projectForm.description.trim().split(/\s+/).filter(Boolean).length} / 200 words
+                    </p>
                     {formErrors.description && (
                       <p className="text-sm text-red-500 mt-1">{formErrors.description}</p>
                     )}
@@ -552,7 +565,7 @@ export function ProjectsInput({ form }: { form: FormFieldProp }) {
                   >
                     Cancel
                   </Button>
-                  <Button type="button" onClick={saveProject}>
+                  <Button type="button" onClick={saveProject} disabled={!!formErrors.description}>
                     {editingIndex !== null ? "Update Project" : "Add Project"}
                   </Button>
                 </div>
