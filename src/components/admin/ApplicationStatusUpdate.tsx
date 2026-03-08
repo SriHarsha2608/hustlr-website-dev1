@@ -1,39 +1,55 @@
 "use client";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Form } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
-  DialogTrigger,
+  DialogClose,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogClose,
+  DialogTrigger,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
+
+type OverrideStatus = "accepted" | "rejected";
+
+function formatStatus(value: string): string {
+  if (!value) return "Pending";
+  return value
+    .replace(/[_-]/g, " ")
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function formatDecisionSource(value?: string): string {
+  if (!value) return "Algorithm";
+  if (value === "admin_override") return "Admin Override";
+  if (value === "algorithm") return "Algorithm";
+  return formatStatus(value);
+}
 
 function ConfirmActionModal({
   action,
-  onConfirm,
-  children,
-  loading,
   description,
+  onConfirm,
+  loading,
+  children,
 }: {
-  action: string;
+  action: "Approve" | "Reject";
+  description: string;
   onConfirm: () => void;
-  children: React.ReactNode;
   loading: boolean;
-  description?: string;
+  children: React.ReactNode;
 }) {
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-md font-sans">
         <DialogHeader>
-          <DialogTitle>Confirm {action}</DialogTitle>
+          <DialogTitle>{action} Application</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-gray-600">{description}</p>
         <DialogFooter className="mt-4 flex justify-end gap-2">
@@ -44,11 +60,11 @@ function ConfirmActionModal({
           </DialogClose>
           <Button
             type="button"
-            variant={action === "reject" ? "destructive" : "default"}
+            variant={action === "Reject" ? "destructive" : "default"}
             onClick={onConfirm}
             disabled={loading}
           >
-            {loading ? `${action}ing...` : `Confirm ${action}`}
+            {loading ? `${action}ing...` : action}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -56,7 +72,6 @@ function ConfirmActionModal({
   );
 }
 
-// Define status labels and stage mapping
 const STATUS_TO_STAGE: Record<string, number> = {
   not_completed: 1,
   under_review: 1,
@@ -69,32 +84,28 @@ const STATUS_TO_STAGE: Record<string, number> = {
 
 export function StatusUpdateForm({
   currentStatus,
+  currentDecisionSource,
   email,
   jwtToken,
 }: {
   currentStatus: string;
+  currentDecisionSource?: string;
   email: string;
   jwtToken: string;
 }) {
   const [status, setStatus] = useState(currentStatus);
-  const [stage, setStage] = useState(STATUS_TO_STAGE[currentStatus]);
+  const [decisionSource, setDecisionSource] = useState(
+    currentDecisionSource || "algorithm"
+  );
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const form = useForm({
-    defaultValues: {
-      stage: STATUS_TO_STAGE[currentStatus],
-    },
-  });
-
-  const handleStatusUpdate = async (newStatus: string) => {
+  const handleOverride = async (newStatus: OverrideStatus) => {
     setLoading(true);
     setMessage(null);
-    setStatus(newStatus);
-    setStage(STATUS_TO_STAGE[newStatus]);
 
     try {
-      const res = await fetch("/api/admin/updateApplicationStatus", {
+      const response = await fetch("/api/admin/updateApplicationStatus", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -104,140 +115,89 @@ export function StatusUpdateForm({
           email,
           status: newStatus,
           currentStage: STATUS_TO_STAGE[newStatus],
+          decisionStatus: newStatus,
+          decisionSource: "admin_override",
+          algorithmDecision: status,
         }),
       });
 
-      if (res.ok) {
-        toast.success("Status updated successfully!");
-        setMessage("Status updated successfully! Refreshing...");
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      } else {
-        const data = await res.json();
-        setStatus(currentStatus);
-        setStage(STATUS_TO_STAGE[currentStatus]);
-        toast.error(data.error || "Failed to update status.");
-        setMessage(data.error || "Failed to update status.");
+      const json = await response.json();
+      if (!response.ok) {
+        toast.error(json.error || "Failed to override decision");
+        setMessage(json.error || "Failed to override decision");
+        return;
       }
-    } catch {
-      setStatus(currentStatus);
-      setStage(STATUS_TO_STAGE[currentStatus]);
-      toast.error("Failed to update status.");
-      setMessage("Failed to update status.");
+
+      setStatus(newStatus);
+      setDecisionSource("admin_override");
+
+      if (json.warning) {
+        toast.warning(json.warning);
+      }
+
+      toast.success(
+        `Decision overridden to ${formatStatus(
+          newStatus
+        )}. Source set to Admin Override.`
+      );
+      setMessage("Manual override applied successfully. Refreshing...");
+      setTimeout(() => {
+        window.location.reload();
+      }, 900);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to override decision");
+      setMessage("Failed to override decision");
     } finally {
       setLoading(false);
     }
   };
 
-  const renderButtons = () => {
-    switch (status) {
-      case "under_review":
-        return (
-          <div className="flex gap-4">
-            <ConfirmActionModal
-              action="Accept"
-              onConfirm={() => handleStatusUpdate("round_2_eligible")}
-              loading={loading}
-              description="Are you sure you want to accept and move the applicant to Round 2?"
-            >
-              <Button type="button" variant="default">
-                Accept and move to Round 2
-              </Button>
-            </ConfirmActionModal>
-
-            <ConfirmActionModal
-              action="Reject"
-              onConfirm={() => handleStatusUpdate("rejected")}
-              loading={loading}
-              description="Are you sure you want to reject this application? This action cannot be undone."
-            >
-              <Button type="button" variant="destructive">
-                Reject
-              </Button>
-            </ConfirmActionModal>
-          </div>
-        );
-
-      case "round_2_under_review":
-        return (
-          <div className="flex gap-4">
-            <ConfirmActionModal
-              action="Accept"
-              onConfirm={() => handleStatusUpdate("accepted")}
-              loading={loading}
-              description="Are you sure you want to accept and onboard this applicant?"
-            >
-              <Button type="button" variant="default">
-                Accept and onboard user
-              </Button>
-            </ConfirmActionModal>
-
-            <ConfirmActionModal
-              action="Reject"
-              onConfirm={() => handleStatusUpdate("rejected")}
-              loading={loading}
-              description="Are you sure you want to reject this application? This action cannot be undone."
-            >
-              <Button type="button" variant="destructive">
-                Reject
-              </Button>
-            </ConfirmActionModal>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
   return (
-    <>
-      <div className="p-6 border rounded-lg bg-gray-50/20">
-        {currentStatus === "under_review" ||
-        currentStatus === "round_2_under_review" ? (
-          <>
-            <h2 className="font-semibold text-xl mb-4">
-              Update Application Status
-            </h2>
-            <p className="text-gray-600 mb-4 font-sans">
-              Use the form below to update the status of this application.
-            </p>
-            <Form {...form}>
-              <form
-                className="space-y-6 font-sans"
-                onSubmit={(e) => e.preventDefault()}
-              >
-                {renderButtons()}
+    <div className="max-w-screen-lg mx-auto px-10 pb-12">
+      <div className="rounded-lg border bg-gray-50/30 p-6 font-sans">
+        <h2 className="text-xl font-semibold">Manual Override Controls</h2>
+        <p className="mt-1 text-sm text-gray-600">
+          Override the automated decision for this applicant.
+        </p>
 
-                <Input type="hidden" name="stage" value={stage} />
-                <Input type="hidden" name="status" value={status} />
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 text-sm">
+          <p>
+            <span className="font-medium">Decision Status:</span>{" "}
+            {formatStatus(status)}
+          </p>
+          <p>
+            <span className="font-medium">Decision Source:</span>{" "}
+            {formatDecisionSource(decisionSource)}
+          </p>
+        </div>
 
-                {message && (
-                  <p
-                    className={`text-sm font-medium ${
-                      message.includes("success")
-                        ? "text-green-700"
-                        : "text-red-700"
-                    }`}
-                  >
-                    {message}
-                  </p>
-                )}
-              </form>
-            </Form>
-          </>
-        ) : (
-          <div className="text-center">
-            <p className="text-lg font-semibold">
-              Current Status: {currentStatus}
-            </p>
-            <p className="text-sm text-gray-500">
-              No actions available for this status.
-            </p>
-          </div>
-        )}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <ConfirmActionModal
+            action="Approve"
+            loading={loading}
+            description="This will set the applicant status to Accepted, update stage status, and mark decision source as Admin Override."
+            onConfirm={() => handleOverride("accepted")}
+          >
+            <Button type="button" disabled={loading}>
+              Approve
+            </Button>
+          </ConfirmActionModal>
+
+          <ConfirmActionModal
+            action="Reject"
+            loading={loading}
+            description="This will set the applicant status to Rejected, update stage status, and mark decision source as Admin Override."
+            onConfirm={() => handleOverride("rejected")}
+          >
+            <Button type="button" variant="destructive" disabled={loading}>
+              Reject
+            </Button>
+          </ConfirmActionModal>
+        </div>
+
+        {message ? <p className="mt-4 text-sm text-gray-700">{message}</p> : null}
       </div>
-    </>
+    </div>
   );
 }

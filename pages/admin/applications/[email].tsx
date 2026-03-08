@@ -2,19 +2,27 @@ import { Button } from "@/components/ui/button";
 import { createToken, verifyToken } from "@/src/lib/jwt";
 import { ApplicationStatusCard } from "@/src/components/admin/ApplicationStatusMsg";
 import { StatusUpdateForm } from "@/src/components/admin/ApplicationStatusUpdate";
+import ApplicantDetailView from "@/src/components/admin/ApplicantDetailView";
 import Nav from "@/src/components/Nav";
 import { GetVettingProgressResponse } from "@/src/lib/schemas/formSchema";
-import VettingDataDisplay from "@/src/components/vetting/VettingDetails";
 import { getVettingProgress } from "@/src/lib/vettingUtils";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { GetServerSideProps } from "next";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const emailId = context.params?.email;
   const adminJwtToken = context.req.cookies.session;
+  const adminEmail = (
+    process.env.ADMIN_EMAIL || "admin@hustlr.local"
+  ).toLowerCase();
   const payload = verifyToken(adminJwtToken as string);
 
-  if (typeof payload === "string" || payload.role !== "admin") {
+  const tokenEmail = String((payload as any)?.email || "").toLowerCase();
+  if (
+    typeof payload === "string" ||
+    payload.role !== "admin" ||
+    tokenEmail !== adminEmail
+  ) {
     return {
       redirect: {
         destination: "/admin/login",
@@ -70,14 +78,13 @@ export default function ProjectInfoPage({
 
           <ApplicationStatusCard data={res.data} />
           <div className="p-10 max-w-screen-lg mx-auto font-sans">
-            <VettingDataDisplay jwtToken={userJwtToken} data={res.data} />
+            <ApplicantDetailView jwtToken={userJwtToken} data={res.data} />
           </div>
-
-          {/* Application Status Update Form */}
 
           <StatusUpdateForm
             jwtToken={adminJwtToken}
             currentStatus={res.data.status || "not_completed"}
+            currentDecisionSource={res.data.decisionSource || "algorithm"}
             email={res.data.email}
           />
         </div>

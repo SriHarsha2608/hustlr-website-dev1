@@ -2,6 +2,10 @@ import { supabaseAdmin } from "@/src/lib/supabase-admin";
 import { NextApiRequest, NextApiResponse } from "next";
 import { verifyToken } from "@/src/lib/jwt";
 
+const ADMIN_EMAIL = (
+  process.env.ADMIN_EMAIL || "admin@hustlr.local"
+).toLowerCase();
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -17,7 +21,12 @@ export default async function handler(
   let payload: any;
   try {
     payload = verifyToken(token);
-    if (typeof payload === "string" || payload.role !== "admin") {
+    const tokenEmail = String(payload?.email || "").toLowerCase();
+    if (
+      typeof payload === "string" ||
+      payload.role !== "admin" ||
+      tokenEmail !== ADMIN_EMAIL
+    ) {
       return res
         .status(403)
         .json({ success: false, error: "Forbidden: Admin access required" });
