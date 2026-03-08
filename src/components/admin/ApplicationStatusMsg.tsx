@@ -2,7 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { SupabaseVettingData } from "../../lib/schemas/formSchema";
 
 export function ApplicationStatusCard({ data }: { data: SupabaseVettingData }) {
-  const { isComplete, status, currentStage } = data;
+  const { isComplete, status, currentStage, decisionStatus, decisionSource } =
+    data;
 
   let message = "";
   let badge = "";
@@ -81,6 +82,19 @@ export function ApplicationStatusCard({ data }: { data: SupabaseVettingData }) {
         )}
         {currentStage && (
           <Badge variant="secondary">Current Stage: {currentStage}</Badge>
+        )}
+        {decisionStatus && (
+          <Badge variant="outline">
+            Decision Status: {String(decisionStatus).replace(/[_-]/g, " ")}
+          </Badge>
+        )}
+        {decisionSource && (
+          <Badge variant="outline">
+            Decision Source:{" "}
+            {decisionSource === "admin_override"
+              ? "Admin Override"
+              : String(decisionSource).replace(/[_-]/g, " ")}
+          </Badge>
         )}
       </div>
     </div>

@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
-import { auth, provider } from "@/src/lib/firebaseClient";
 import { toast } from "sonner";
 
 import {
@@ -16,7 +14,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Form,
   FormControl,
@@ -40,6 +37,9 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const LOCAL_ADMIN_EMAIL = "admin@hustlr.local";
+const LOCAL_ADMIN_PASSWORD = "hustlr-admin-2026";
+
 export default function AdminLogin() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -47,27 +47,20 @@ export default function AdminLogin() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: LOCAL_ADMIN_EMAIL,
+      password: LOCAL_ADMIN_PASSWORD,
     },
   });
 
   const loginWithEmail = async (data: FormValues) => {
     setLoading(true);
     try {
-      const userCred = await signInWithEmailAndPassword(
-        auth,
-        data.email,
-        data.password
-      );
-      const idToken = await userCred.user.getIdToken();
-
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
         },
+        body: JSON.stringify(data),
       });
 
       const json = await res.json();
@@ -80,35 +73,6 @@ export default function AdminLogin() {
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Login failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loginWithGoogle = async () => {
-    setLoading(true);
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const idToken = await result.user.getIdToken();
-
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-
-      const json = await res.json();
-      if (json.success) {
-        toast.success("Logged in as admin!");
-        router.push("/admin");
-      } else {
-        toast.error(json.error || "Login failed");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Login failed");
     } finally {
       setLoading(false);
     }
@@ -173,17 +137,6 @@ export default function AdminLogin() {
                 </Button>
               </form>
             </Form>
-
-            <Separator className="my-4" />
-
-            {/* <Button
-              onClick={loginWithGoogle}
-              variant="outline"
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? "Redirecting..." : "Login with Google"}
-            </Button> */}
           </CardContent>
 
           <CardFooter>

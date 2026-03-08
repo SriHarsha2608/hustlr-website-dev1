@@ -6,31 +6,15 @@ const ADMIN_EMAIL = (
   process.env.ADMIN_EMAIL || "admin@hustlr.local"
 ).toLowerCase();
 
-function toStageStatus(statusLike: unknown): "pending" | "accepted" | "rejected" {
-  const normalized = String(statusLike || "")
+type BulkDecisionStatus = "accepted" | "rejected";
+
+function parseBulkDecisionStatus(value: unknown): BulkDecisionStatus | null {
+  const normalized = String(value || "")
     .trim()
     .toLowerCase();
   if (normalized === "accepted") return "accepted";
   if (normalized === "rejected") return "rejected";
-  return "pending";
-}
-
-function toPipelineStage(statusLike: unknown, currentStage: number) {
-  const normalized = String(statusLike || "")
-    .trim()
-    .toLowerCase();
-
-  if (normalized === "accepted") return "accepted";
-  if (normalized === "rejected") return "rejected";
-  if (
-    normalized === "round_2_eligible" ||
-    normalized === "round_2_project_selected" ||
-    normalized === "round_2_under_review" ||
-    currentStage >= 2
-  ) {
-    return "test_project";
-  }
-  return "resume_screening";
+  return null;
 }
 
 export default async function handler(
@@ -50,6 +34,7 @@ export default async function handler(
       error: "Missing or invalid authorization header",
     });
   }
+
   const token = authHeader.split(" ")[1];
   let payload: any;
   try {
@@ -70,60 +55,54 @@ export default async function handler(
       .json({ success: false, error: "Invalid or expired token" });
   }
 
-  const {
-    email,
-    currentStage,
-    status,
-    decisionStatus,
-    decisionSource,
-    algorithmDecision,
-  } = req.body || {};
-  if (!email || !status || typeof currentStage !== "number") {
+  const { emails, decisionStatus } = req.body || {};
+
+  if (!Array.isArray(emails) || emails.length === 0) {
+    return res
+      .status(400)
+      .json({ success: false, error: "emails must be a non-empty array" });
+  }
+
+  const normalizedEmails = Array.from(
+    new Set(
+      emails
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  if (normalizedEmails.length === 0) {
+    return res
+      .status(400)
+      .json({ success: false, error: "No valid applicant emails provided" });
+  }
+
+  const normalizedDecisionStatus = parseBulkDecisionStatus(decisionStatus);
+  if (!normalizedDecisionStatus) {
     return res.status(400).json({
       success: false,
-      error: "email, status and currentStage are required",
+      error: "decisionStatus must be accepted or rejected",
     });
   }
 
   const baseUpdatePayload: Record<string, unknown> = {
-    currentStage,
-    status,
+    currentStage: 3,
+    status: normalizedDecisionStatus,
   };
 
   const extendedPayload: Record<string, unknown> = {
     ...baseUpdatePayload,
+    decisionStatus: normalizedDecisionStatus,
+    decisionSource: "admin_override",
+    algorithmDecision: normalizedDecisionStatus,
+    current_stage: normalizedDecisionStatus,
+    stage_status: normalizedDecisionStatus,
+    decision_status: normalizedDecisionStatus,
+    decision_source: "admin_override",
+    resume_decision: normalizedDecisionStatus,
+    decisionUpdatedAt: new Date().toISOString(),
   };
 
-  if (typeof decisionStatus === "string" && decisionStatus.trim()) {
-    extendedPayload.decisionStatus = decisionStatus.trim();
-  }
-  if (typeof decisionSource === "string" && decisionSource.trim()) {
-    extendedPayload.decisionSource = decisionSource.trim();
-  }
-  if (typeof algorithmDecision === "string" && algorithmDecision.trim()) {
-    extendedPayload.algorithmDecision = algorithmDecision.trim();
-  }
-
-  const normalizedStageStatus = toStageStatus(decisionStatus || status);
-  const normalizedDecisionSource = (
-    typeof decisionSource === "string" && decisionSource.trim()
-      ? decisionSource
-      : "algorithm"
-  ).trim();
-  const normalizedPipelineStage = toPipelineStage(status, currentStage);
-
-  extendedPayload.current_stage = normalizedPipelineStage;
-  extendedPayload.stage_status = normalizedStageStatus;
-  extendedPayload.decision_status =
-    (typeof decisionStatus === "string" && decisionStatus.trim()) ||
-    normalizedStageStatus;
-  extendedPayload.decision_source = normalizedDecisionSource;
-  extendedPayload.resume_decision =
-    (typeof algorithmDecision === "string" && algorithmDecision.trim()) ||
-    (typeof decisionStatus === "string" && decisionStatus.trim()) ||
-    normalizedStageStatus;
-
-  extendedPayload.decisionUpdatedAt = new Date().toISOString();
   if (payload?.email) {
     extendedPayload.decisionUpdatedBy = payload.email;
   }
@@ -132,9 +111,8 @@ export default async function handler(
     supabaseAdmin
       .from("vettingapplications")
       .update(payloadToSave)
-      .eq("email", email)
-      .select("*")
-      .single();
+      .in("email", normalizedEmails)
+      .select("email");
 
   let { data, error } = await updateWithPayload(extendedPayload);
 
@@ -152,13 +130,20 @@ export default async function handler(
       return res.status(200).json({
         success: true,
         data,
+        updatedCount: Array.isArray(data) ? data.length : 0,
         warning:
           "Decision source/status columns are missing in DB. Stage and status were updated.",
       });
     }
   }
 
-  if (error) return res.status(500).json({ success: false, error: error.message });
+  if (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
 
-  return res.status(200).json({ success: true, data });
+  return res.status(200).json({
+    success: true,
+    data,
+    updatedCount: Array.isArray(data) ? data.length : 0,
+  });
 }

@@ -5,6 +5,9 @@ import { GetServerSideProps } from "next";
 import React from "react";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
+  const adminEmail = (
+    process.env.ADMIN_EMAIL || "admin@hustlr.local"
+  ).toLowerCase();
   try {
     const adminJwtToken = context.req.cookies.session;
     //handle if no token is present
@@ -15,7 +18,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     }
     const payload = verifyToken(adminJwtToken as string);
 
-    if (typeof payload === "object" && payload.role === "admin") {
+    if (
+      typeof payload === "object" &&
+      payload.role === "admin" &&
+      String(payload.email || "").toLowerCase() === adminEmail
+    ) {
       return {
         redirect: {
           destination: "/admin/",

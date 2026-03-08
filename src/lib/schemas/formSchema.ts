@@ -291,6 +291,21 @@ export type SupabaseVettingData = {
   isComplete?: boolean; // tells if stage one is completed
   // used to determine application status
   status?: ApplicationStatus;
+  // future-compatible pipeline fields (snake_case)
+  current_stage?: PipelineStage;
+  stage_status?: StageStatus;
+  resume_score?: number | string;
+  resume_decision?: StageStatus;
+  test_project_status?: TestProjectStatus;
+  decision_status?: StageStatus;
+  decision_source?: DecisionSource;
+  // camelCase mirrors for frontend/runtime compatibility
+  decisionStatus?: "accepted" | "rejected" | "pending" | string;
+  decisionSource?: "algorithm" | "admin_override" | string;
+  decisionUpdatedAt?: string;
+  decisionUpdatedBy?: string;
+  resumeScore?: number | string;
+  algorithmDecision?: "accepted" | "rejected" | "pending" | string;
   currentStage?: number;
   // scoring fields (added by migration 002)
   scores?: Record<string, any>;
@@ -312,6 +327,24 @@ export type ApplicationStatus =
   // verbose enough
   | "accepted" // both rounds were accepted and onboarding completed
   | "rejected";
+
+export type PipelineStage =
+  | "application_submitted"
+  | "resume_screening"
+  | "test_project"
+  | "live_screening"
+  | "accepted"
+  | "rejected";
+
+export type StageStatus = "pending" | "accepted" | "rejected";
+export type TestProjectStatus =
+  | "not_started"
+  | "assigned"
+  | "submitted"
+  | "under_review"
+  | "accepted"
+  | "rejected";
+export type DecisionSource = "algorithm" | "admin_override";
 
 export type Stage2Data = {
   email: string;
