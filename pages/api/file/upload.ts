@@ -11,9 +11,11 @@ export const config = {
   },
 };
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
 const parseForm = (req: NextApiRequest): Promise<{ fields: any; files: any }> =>
   new Promise((resolve, reject) => {
-    const form = formidable({ multiples: false });
+    const form = formidable({ multiples: false, maxFileSize: MAX_FILE_SIZE });
     form.parse(req, (err, fields, files) => {
       if (err) reject(err);
       else resolve({ fields, files });

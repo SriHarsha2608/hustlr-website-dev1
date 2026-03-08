@@ -152,6 +152,16 @@ export function ProjectsInput({ form }: { form: FormFieldProp }) {
       }
     }
 
+    // Validate end date is not in the future
+    if (projectForm.endYear && projectForm.endMonth) {
+      const now = new Date();
+      const endYearNum = parseInt(projectForm.endYear);
+      const endMonthIdx = MONTHS.indexOf(projectForm.endMonth);
+      if (endYearNum > now.getFullYear() || (endYearNum === now.getFullYear() && endMonthIdx > now.getMonth())) {
+        errors.date = "End date cannot be in the future";
+      }
+    }
+
     // Validate GitHub link
     if (!projectForm.githubLink.trim()) {
       errors.githubLink = "GitHub link is required";
@@ -274,7 +284,13 @@ export function ProjectsInput({ form }: { form: FormFieldProp }) {
                       <label className="text-sm font-medium text-gray-700 mb-1 block">Members</label>
                       <Select
                         value={projectForm.members}
-                        onValueChange={(value) => setProjectForm(prev => ({ ...prev, members: value }))}
+                        onValueChange={(value) => {
+                          setProjectForm(prev => ({
+                            ...prev,
+                            members: value,
+                            role: value === "Solo" ? "Solo Developer" : prev.role === "Solo Developer" ? "" : prev.role,
+                          }));
+                        }}
                       >
                         <SelectTrigger className={cn("w-full", formErrors.members && "border-red-500")}>
                           <SelectValue placeholder="Select members type" />
@@ -293,6 +309,7 @@ export function ProjectsInput({ form }: { form: FormFieldProp }) {
                       <Select
                         value={projectForm.role}
                         onValueChange={(value) => setProjectForm(prev => ({ ...prev, role: value }))}
+                        disabled={projectForm.members === "Solo"}
                       >
                         <SelectTrigger className={cn("w-full", formErrors.role && "border-red-500")}>
                           <SelectValue placeholder="Select role" />

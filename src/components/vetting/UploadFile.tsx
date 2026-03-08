@@ -129,6 +129,18 @@ export default function UploadFileInput({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("File size must be less than 5MB");
+      event.target.value = "";
+      return;
+    }
+
+    if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
+      toast.error("Only .jpg, .jpeg, .png, .webp and .pdf files are accepted");
+      event.target.value = "";
+      return;
+    }
+
     setSelectedFile(file);
     setUploading(true);
 

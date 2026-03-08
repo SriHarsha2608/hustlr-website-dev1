@@ -146,7 +146,7 @@ export const formSchema = z.object({
         name: z.string().min(1, "Competition name is required"),
         achievement: z.string().min(1, "Qualification / achievement is required"),
         year: z.string().min(1, "Year is required"),
-        verificationLink: z.string().url("Enter a valid verification URL").optional(),
+        verificationLink: z.string().url("Enter a valid verification URL").optional().or(z.literal("")),
       })
     )
     .optional(),

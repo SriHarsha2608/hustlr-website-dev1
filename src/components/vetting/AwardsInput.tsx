@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Award, Pencil } from "lucide-react";
 import { FormFieldProp } from "../../lib/schemas/formSchema";
 import UploadFileInput from "./UploadFile";
+import { toast } from "sonner";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -208,6 +209,11 @@ export function AwardsInput({ form, email, jwtToken }: { form: FormFieldProp; em
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          if (file.size > 5 * 1024 * 1024) {
+                            toast.error("File size must be less than 5MB");
+                            e.target.value = "";
+                            return;
+                          }
                           // Handle file upload - this will be replaced with proper file upload
                           setAwardForm(prev => ({ ...prev, certification: file.name }));
                         }

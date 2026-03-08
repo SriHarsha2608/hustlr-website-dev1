@@ -147,6 +147,17 @@ export function OpenSourceInput({ form }: { form: FormFieldProp }) {
       if (isNaN(num) || num < 1) errors.monthsContributing = "Must be at least 1 month";
     }
 
+    // Check for duplicate PR links across all four fields
+    const prLinks = [osForm.topPR1, osForm.topPR2, osForm.topPR3, osForm.impactPRLink].filter(Boolean);
+    const uniqueLinks = new Set(prLinks.map(l => l.trim().toLowerCase()));
+    if (uniqueLinks.size < prLinks.length) {
+      errors.topPR1 = errors.topPR1 || "";
+      if (!errors.topPR1) errors.topPR1 = "All PR links must be unique";
+      if (!errors.topPR2) errors.topPR2 = "All PR links must be unique";
+      if (!errors.topPR3) errors.topPR3 = "All PR links must be unique";
+      if (!errors.impactPRLink) errors.impactPRLink = "All PR links must be unique";
+    }
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;

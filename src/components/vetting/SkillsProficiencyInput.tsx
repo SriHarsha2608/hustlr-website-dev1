@@ -7,6 +7,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { X, Plus, Check } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { FormFieldProp } from "../../lib/schemas/formSchema";
+import { toast } from "sonner";
 
 
 
@@ -36,6 +37,19 @@ export function SkillsProficiencyInput({ form }: { form: FormFieldProp }) {
 
   const updateSkill = (index: number, field: "skill" | "proficiency", value: string) => {
     const currentSkills = form.getValues("skills") || [];
+
+    // Prevent duplicate skill names
+    if (field === "skill") {
+      const isDuplicate = currentSkills.some(
+        (s, i) => i !== index && s.skill.toLowerCase() === value.toLowerCase()
+      );
+      if (isDuplicate) {
+        toast.error(`"${value}" is already added`);
+        setOpenPopovers(prev => ({ ...prev, [index]: false }));
+        return;
+      }
+    }
+
     const updated = [...currentSkills];
     updated[index] = { ...updated[index], [field]: value };
     form.setValue("skills", updated);
@@ -97,7 +111,15 @@ export function SkillsProficiencyInput({ form }: { form: FormFieldProp }) {
                           <CommandList>
                             <CommandEmpty>No skill found.</CommandEmpty>
                             <CommandGroup>
-                              {PREDEFINED_SKILLS.map((skill) => (
+                              {PREDEFINED_SKILLS
+                                .filter((skill) => {
+                                  // Hide skills already added in other rows
+                                  const selectedSkills = (form.getValues("skills") || [])
+                                    .filter((_: any, i: number) => i !== index)
+                                    .map((s: any) => s.skill.toLowerCase());
+                                  return !selectedSkills.includes(skill.toLowerCase());
+                                })
+                                .map((skill) => (
                                 <CommandItem
                                   key={skill}
                                   value={skill}
