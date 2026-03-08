@@ -58,7 +58,7 @@ const EMPTY_FORM: OpenSourceFormData = {
   impactPRLink: "",
   impactDescription: "",
   monthsContributing: "",
-  
+
 };
 
 export function OpenSourceInput({ form }: { form: FormFieldProp }) {
@@ -149,14 +149,13 @@ export function OpenSourceInput({ form }: { form: FormFieldProp }) {
       if (isNaN(num) || num < 1) errors.monthsContributing = "Must be at least 1 month";
     }
 
-    // Check for duplicate PR links across all four fields
-    const prLinks = [osForm.topPR1, osForm.topPR2, osForm.topPR3, osForm.impactPRLink].filter(Boolean);
-    const uniqueLinks = new Set(prLinks.map(l => l.trim().toLowerCase()));
-    if (uniqueLinks.size < prLinks.length) {
-      if (!errors.topPR1) errors.topPR1 = "All PR links must be unique";
-      if (!errors.topPR2) errors.topPR2 = "All PR links must be unique";
-      if (!errors.topPR3) errors.topPR3 = "All PR links must be unique";
-      if (!errors.impactPRLink) errors.impactPRLink = "All PR links must be unique";
+    // Check for duplicate PR links across the top 3 PRs
+    const topPrLinks = [osForm.topPR1, osForm.topPR2, osForm.topPR3].filter(Boolean);
+    const uniqueTopLinks = new Set(topPrLinks.map(l => l.trim().toLowerCase()));
+    if (uniqueTopLinks.size < topPrLinks.length) {
+      if (!errors.topPR1) errors.topPR1 = "Top 3 PR links must be unique";
+      if (!errors.topPR2) errors.topPR2 = "Top 3 PR links must be unique";
+      if (!errors.topPR3) errors.topPR3 = "Top 3 PR links must be unique";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -197,7 +196,7 @@ export function OpenSourceInput({ form }: { form: FormFieldProp }) {
             <FormLabel className="text-lg font-semibold text-gray-900">
               Open Source <span className="text-xs font-medium" style={{ color: "#4d9a9a" }}>Add max 3 contributions</span>
             </FormLabel>
-            
+
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               {openSourceEntries.length < 3 && (
                 <DialogTrigger asChild>
@@ -211,7 +210,7 @@ export function OpenSourceInput({ form }: { form: FormFieldProp }) {
                   </Button>
                 </DialogTrigger>
               )}
-              
+
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingIndex !== null ? "Edit Contribution" : "Add New Contribution"}</DialogTitle>
@@ -361,7 +360,7 @@ export function OpenSourceInput({ form }: { form: FormFieldProp }) {
                         <p className="text-sm text-red-500 mt-1">{formErrors.programName}</p>
                       )}
                     </div>
-                    
+
                     {osForm.programName && osForm.programName !== "None" && (
                       <div>
                         <label className="text-sm font-medium text-gray-700 mb-1 block">Official Proof Link</label>
@@ -455,7 +454,7 @@ export function OpenSourceInput({ form }: { form: FormFieldProp }) {
                         ? "1 month"
                         : `${entry.monthsContributing} months`
                     : "";
-                    
+
                   return (
                     <div
                       key={index}
@@ -464,7 +463,7 @@ export function OpenSourceInput({ form }: { form: FormFieldProp }) {
                       {entry.projectName && (
                         <h2 className="font-bold text-lg text-gray-900 mb-1 truncate">{entry.projectName}</h2>
                       )}
-                      
+
                       {/* Header Row */}
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
@@ -486,7 +485,7 @@ export function OpenSourceInput({ form }: { form: FormFieldProp }) {
                             {monthsLabel}
                           </span>
                         </div>
-                        
+
                         {/* Actions */}
                         <div className="flex gap-2 shrink-0">
                           <Button

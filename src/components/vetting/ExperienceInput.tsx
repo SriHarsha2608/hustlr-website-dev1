@@ -53,7 +53,7 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [openSkillsPopover, setOpenSkillsPopover] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  
+
   const [experienceForm, setExperienceForm] = useState<ExperienceFormData>({
     title: "",
     employmentType: "",
@@ -132,7 +132,7 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
     setFormErrors({});
 
     const currentExperiences = (form.getValues("experiences") || []) as ExperienceFormData[];
-    
+
     if (editingIndex !== null) {
       const updated = [...currentExperiences];
       updated[editingIndex] = experienceForm;
@@ -141,7 +141,7 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
       if (currentExperiences.length >= 3) return;
       form.setValue("experiences", [...currentExperiences, experienceForm] as any);
     }
-    
+
     form.trigger("experiences");
     setIsDialogOpen(false);
     resetForm();
@@ -184,22 +184,22 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
             </FormLabel>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               {experiences.length < 3 && (
-              <DialogTrigger asChild>
-                <Button
-                  type="button"
-                  onClick={() => openDialog()}
-                  className="flex items-center gap-2 bg-accentBlue hover:bg-accentBlue/90 text-white"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Experience ({experiences.length}/3)
-                </Button>
-              </DialogTrigger>
+                <DialogTrigger asChild>
+                  <Button
+                    type="button"
+                    onClick={() => openDialog()}
+                    className="flex items-center gap-2 bg-accentBlue hover:bg-accentBlue/90 text-white"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Experience ({experiences.length}/3)
+                  </Button>
+                </DialogTrigger>
               )}
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingIndex !== null ? "Edit Experience" : "Add New Experience"}</DialogTitle>
                 </DialogHeader>
-                
+
                 <div className="space-y-4 py-4">
                   {/* Title - Full Width */}
                   <div>
@@ -248,7 +248,7 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
                         <p className="text-sm text-red-500 mt-1">{formErrors.company}</p>
                       )}
                     </div>
-                  </div>    
+                  </div>
                   {/* Description */}
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-1 block">Description</label>
@@ -291,7 +291,16 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
                           <ChevronDown className="h-4 w-4 opacity-50" />
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[400px] p-0" align="start">
+                      <PopoverContent className="w-[400px] p-0 relative" align="start">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-2 top-2 h-7 w-7 p-0 z-10 text-gray-500 hover:text-gray-900 bg-transparent hover:bg-gray-100 rounded-md"
+                          onClick={() => setOpenSkillsPopover(false)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
                         <Command>
                           <CommandInput placeholder="Search skill..." />
                           <CommandList>
@@ -317,7 +326,7 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
                         </Command>
                       </PopoverContent>
                     </Popover>
-                    
+
                     {/* Selected Skills */}
                     {experienceForm.skills.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">

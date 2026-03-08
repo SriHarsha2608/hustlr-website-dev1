@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 // Define your preloaded skills here
 const PREDEFINED_SKILLS = [
-  "Node.js", "React", "TypeScript", "Python", "Docker", 
+  "Node.js", "React", "TypeScript", "Python", "Docker",
   "Tailwind CSS", "Next.js", "PostgreSQL", "AWS", "UI/UX Design"
 ];
 
@@ -57,7 +57,7 @@ export function SkillsProficiencyInput({ form }: { form: FormFieldProp }) {
 
     // Close the popover after selecting the skill
     if (field === "skill") {
-      setOpenPopovers(prev => ({ ...prev, [index]: false}));
+      setOpenPopovers(prev => ({ ...prev, [index]: false }));
     }
   };
 
@@ -86,23 +86,12 @@ export function SkillsProficiencyInput({ form }: { form: FormFieldProp }) {
                           role="combobox"
                           className={cn(
                             "flex items-center justify-between h-9 px-3 rounded-md gap-2 transition-colors",
-                            skillItem.skill 
-                              ? "bg-[#5FB3B3] text-white hover:bg-[#4d9a9a] hover:text-white" 
+                            skillItem.skill
+                              ? "bg-[#5FB3B3] text-white hover:bg-[#4d9a9a] hover:text-white"
                               : "bg-transparent text-gray-500"
                           )}
                         >
                           {skillItem.skill || "Select Skill"}
-                          {skillItem.skill && (
-                            <div
-                              className="w-3 h-3 cursor-pointer opacity-80 hover:opacity-100" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeSkill(index);
-                              }}
-                            >
-                                <X className="w-3 h-3" />
-                                </div>
-                          )}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[240px] p-0" align="start">
@@ -120,22 +109,22 @@ export function SkillsProficiencyInput({ form }: { form: FormFieldProp }) {
                                   return !selectedSkills.includes(skill.toLowerCase());
                                 })
                                 .map((skill) => (
-                                <CommandItem
-                                  key={skill}
-                                  value={skill}
-                                  onSelect={(currentValue) => {
-                                    updateSkill(index, "skill", currentValue);
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      skillItem.skill === skill ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {skill}
-                                </CommandItem>
-                              ))}
+                                  <CommandItem
+                                    key={skill}
+                                    value={skill}
+                                    onSelect={(currentValue) => {
+                                      updateSkill(index, "skill", currentValue);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        skillItem.skill === skill ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {skill}
+                                  </CommandItem>
+                                ))}
                             </CommandGroup>
                           </CommandList>
                         </Command>
@@ -174,19 +163,19 @@ export function SkillsProficiencyInput({ form }: { form: FormFieldProp }) {
 
               {/* Add Skill Button Row */}
               {skills.length < 10 && (
-              <div className="flex items-center gap-4 pt-2">
-                <Plus 
-                  className="w-5 h-5 cursor-pointer text-gray-400 hover:text-black" 
-                  onClick={addSkill} 
-                />
-                <Button
-                  type="button"
-                  onClick={addSkill}
-                  className="bg-accentBlue hover:bg-accentBlue/90 text-white justify-start px-4 py-2.5 rounded-lg h-11 min-w-[240px] font-normal"
-                >
-                  Add Skill ({skills.length}/10)
-                </Button>
-              </div>
+                <div className="flex items-center gap-4 pt-2">
+                  <Plus
+                    className="w-5 h-5 cursor-pointer text-gray-400 hover:text-black"
+                    onClick={addSkill}
+                  />
+                  <Button
+                    type="button"
+                    onClick={addSkill}
+                    className="bg-accentBlue hover:bg-accentBlue/90 text-white justify-start px-4 py-2.5 rounded-lg h-11 min-w-[240px] font-normal"
+                  >
+                    Add Skill ({skills.length}/10)
+                  </Button>
+                </div>
               )}
             </div>
           </FormControl>
