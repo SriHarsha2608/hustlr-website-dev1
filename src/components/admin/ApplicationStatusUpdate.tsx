@@ -64,7 +64,7 @@ function ConfirmActionModal({
             onClick={onConfirm}
             disabled={loading}
           >
-            {loading ? `${action}ing...` : action}
+            {loading ? (action === "Approve" ? "Approving..." : "Rejecting...") : action}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -469,12 +469,15 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
                     className="border border-gray-200 rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
                   >
 
-                    <div className="flex justify-between items-start mb-3">
+                    {/* Top Row: Title, Employment Type + Actions */}
+                    <div className="flex justify-between items-start mb-1">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 truncate min-w-0">{experience.title}</h3>
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full text-white shrink-0" style={{ backgroundColor: "#a1d7d7" }}>{experience.employmentType}</span>
+                        <h3 className="font-semibold text-gray-900 truncate">{experience.title}</h3>
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full text-white shrink-0" style={{ backgroundColor: "#a1d7d7" }}>
+                          {experience.employmentType}
+                        </span>
                       </div>
-                      <div className="flex gap-2 shrink-0">
+                      <div className="flex gap-2 shrink-0 ml-4">
                         <Button
                           type="button"
                           variant="ghost"
@@ -496,17 +499,12 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
                       </div>
                     </div>
 
-                    {/* 2nd Row: Company - Duration */}
+                    {/* Company Row */}
                     <div className="mb-3">
-                      <p className="text-sm text-gray-700">
-                        <span className="font-medium">{experience.company}</span>
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {experience.startMonth} {experience.startYear} - {experience.endMonth} {experience.endYear}
-                      </p>
+                      <p className="text-sm font-medium text-gray-700">{experience.company}</p>
                     </div>
 
-                    {/* 3rd Row: Skills */}
+                    {/* Skills */}
                     <div className="flex flex-wrap gap-1 mb-3">
                       {experience.skills.map((skill: string, i: number) => (
                         <span
@@ -518,8 +516,15 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
                       ))}
                     </div>
 
-                    {/* 4th Row: Description */}
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap break-words">{experience.description}</p>
+                    {/* Description */}
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap break-words mb-3">
+                      {experience.description}
+                    </p>
+
+                    {/* Timeline */}
+                    <p className="text-xs font-medium text-gray-500 pt-2 border-gray-200">
+                      {experience.startMonth} {experience.startYear} - {experience.endMonth} {experience.endYear}
+                    </p>
                   </div>
                 ))
               )}

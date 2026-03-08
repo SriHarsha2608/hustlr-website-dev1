@@ -24,6 +24,10 @@ import {
   LogOut,
   Settings,
   SlidersHorizontal,
+  Check,
+  X,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 
 type VettingStage = "application_submitted" | "resume_screening" | "test_project";
@@ -196,9 +200,9 @@ function getResumeScoreValue(application: SupabaseVettingData): number | null {
 function getResumeDecisionStatus(application: SupabaseVettingData): DecisionStatus {
   const explicit = String(
     (application as any).resume_decision ||
-      (application as any).resumeDecision ||
-      application.algorithmDecision ||
-      ""
+    (application as any).resumeDecision ||
+    application.algorithmDecision ||
+    ""
   )
     .trim()
     .toLowerCase();
@@ -264,7 +268,18 @@ export async function getServerSideProps(context: any) {
     };
   }
 
-  const payload = verifyToken(token);
+  let payload: any = null;
+  try {
+    payload = verifyToken(token);
+  } catch (err) {
+    return {
+      redirect: {
+        destination: "/admin/login",
+        permanent: false,
+      },
+    };
+  }
+
   const role =
     payload && typeof payload === "object" && typeof payload.role === "string"
       ? payload.role
@@ -277,7 +292,7 @@ export async function getServerSideProps(context: any) {
   if (role !== "admin" || !email || email.toLowerCase() !== adminEmail) {
     return {
       redirect: {
-        destination: "/",
+        destination: "/admin/login",
         permanent: false,
       },
     };
@@ -302,6 +317,8 @@ export default function AdminPanel({
   const [universityFilter, setUniversityFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [showAlgorithmPanel, setShowAlgorithmPanel] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const filterPanelRef = useRef<HTMLDivElement | null>(null);
   const [stage1Threshold, setStage1Threshold] = useState(
     DEFAULT_SCORING_CONFIG.threshold
   );
@@ -316,6 +333,14 @@ export default function AdminPanel({
   >(new Set());
   const [bulkActionInProgress, setBulkActionInProgress] =
     useState<BulkDecision | null>(null);
+  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set([0, 1]));
+
+  const toggleCard = (idx: number) =>
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      next.has(idx) ? next.delete(idx) : next.add(idx);
+      return next;
+    });
   const selectAllVisibleRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
 
@@ -477,6 +502,10 @@ export default function AdminPanel({
     let resumeScoreCount = 0;
     let projectOngoing = 0;
     let projectCompleted = 0;
+
+    let uiStage1 = 0;      // Approved either by AI or Manual
+    let uiApproved = 0;    // Final Approved
+    let uiRejected = 0;    // Final or Stage 1 Rejected
     const stageSnapshot: Record<SnapshotStage, number> = {
       application_submitted: 0,
       resume_screening: 0,
@@ -486,23 +515,64 @@ export default function AdminPanel({
     };
 
     applications.forEach((app) => {
-      const stage = getSnapshotStage(app);
+      // Compute the true decision outcome based on score/threshold or admin override
+      let decisionBucket: "pending" | "accepted" | "rejected" = "pending";
+      const source = String((app as any).decision_source || app.decisionSource || "").trim().toLowerCase();
+      const isManual =
+        source === "admin_override" ||
+        app.status === "accepted" ||
+        app.status === "rejected";
+
+      if (isManual) {
+        const storedDecision = getDecisionStatus(app);
+        if (storedDecision === "accepted" || storedDecision === "rejected") {
+          decisionBucket = storedDecision;
+        }
+      } else {
+        if (app.final_score != null) {
+          decisionBucket = app.final_score >= stage1Threshold ? "accepted" : "rejected";
+        }
+      }
+
+      let stage: SnapshotStage;
+      if (decisionBucket === "accepted") {
+        stage = "accepted";
+      } else if (decisionBucket === "rejected") {
+        stage = "rejected";
+      } else {
+        stage = getVettingStage(app);
+      }
+
       stageSnapshot[stage] += 1;
+
+      // ---- Explicit Custom UI Metrics ----
+      if (decisionBucket === "accepted") {
+        uiStage1 += 1;
+        resumeAccepted += 1;
+        resumeEvaluated += 1;
+      } else if (decisionBucket === "rejected") {
+        resumeEvaluated += 1;
+      }
+
+      const explicitStatus = getDecisionStatus(app);
+      if (explicitStatus === "accepted") {
+        uiApproved += 1;
+      } else if (explicitStatus === "rejected") {
+        uiRejected += 1;
+      } else {
+        if (decisionBucket === "accepted") {
+          uiApproved += 1;
+        } else if (decisionBucket === "rejected") {
+          uiRejected += 1;
+        }
+      }
 
       const timestamp = getApplicationTimestamp(app);
       if (timestamp !== null && timestamp >= oneWeekAgo && timestamp <= now) {
         applicantsThisWeek += 1;
-        if (getDecisionStatus(app) === "accepted") {
+        if (decisionBucket === "accepted") {
           acceptedThisWeek += 1;
         }
-      }
-
-      const resumeDecision = getResumeDecisionStatus(app);
-      if (resumeDecision === "accepted") {
-        resumeAccepted += 1;
-        resumeEvaluated += 1;
-      } else if (resumeDecision === "rejected") {
-        resumeEvaluated += 1;
       }
 
       const resumeScore = getResumeScoreValue(app);
@@ -533,7 +603,7 @@ export default function AdminPanel({
     });
 
     const resumeScreeningPassRate =
-      resumeEvaluated === 0 ? 0 : (resumeAccepted / resumeEvaluated) * 100;
+      totalApplicants === 0 ? 0 : (uiStage1 / totalApplicants) * 100;
     const averageResumeScore =
       resumeScoreCount === 0 ? 0 : resumeScoreTotal / resumeScoreCount;
     const overallAcceptanceRate =
@@ -555,8 +625,15 @@ export default function AdminPanel({
       projectCompleted,
       overallAcceptanceRate,
       acceptanceRateLift,
+      uiStage1,
+      uiApproved,
+      uiRejected,
     };
-  }, [applications]);
+  }, [applications, stage1Threshold]);
+
+  // Stage 1 pass rate: (applicants whose AI score >= threshold or manually approved/rejected) / (total evaluated) * 100
+  // Depends on threshold and decisions so it updates live.
+  const stage1PassRate = metrics.resumeScreeningPassRate;
 
   const hasActiveFilters =
     stageFilter !== "all" ||
@@ -578,7 +655,11 @@ export default function AdminPanel({
     setSearchTerm("");
   };
 
+  const previousSelectionRef = useRef<Set<string> | null>(null);
+
   const toggleApplicantSelection = (applicantEmail: string) => {
+    // Manually selecting/deselecting invalidates the "previous state" for bulk select
+    previousSelectionRef.current = null;
     setSelectedApplicantEmails((prev) => {
       const next = new Set(prev);
       if (next.has(applicantEmail)) {
@@ -592,15 +673,30 @@ export default function AdminPanel({
 
   const toggleSelectAllVisible = (shouldSelect: boolean) => {
     setSelectedApplicantEmails((prev) => {
-      const next = new Set(prev);
-      visibleApplicantEmails.forEach((applicantEmail) => {
-        if (shouldSelect) {
+      // If we are selecting all
+      if (shouldSelect) {
+        // Save the *current* state before we select all
+        previousSelectionRef.current = new Set(prev);
+        const next = new Set(prev);
+        visibleApplicantEmails.forEach((applicantEmail) => {
           next.add(applicantEmail);
-        } else {
-          next.delete(applicantEmail);
+        });
+        return next;
+      } else {
+        // If we are deselecting all AND we have a saved state
+        if (previousSelectionRef.current) {
+          const restored = new Set(previousSelectionRef.current);
+          previousSelectionRef.current = null;
+          return restored;
         }
-      });
-      return next;
+
+        // Otherwise just clear the visible ones
+        const next = new Set(prev);
+        visibleApplicantEmails.forEach((applicantEmail) => {
+          next.delete(applicantEmail);
+        });
+        return next;
+      }
     });
   };
 
@@ -614,14 +710,23 @@ export default function AdminPanel({
     setApplications((prev) =>
       prev.map((app) => {
         if (!targetSet.has(app.email)) return app;
+        const isReject = decisionStatus === "rejected";
+        const oldStage = app.currentStage || 1;
+        const newStatus = isReject
+          ? "rejected"
+          : oldStage < 2
+            ? "round_2_eligible"
+            : "accepted";
+        const newStage = isReject ? 3 : oldStage < 2 ? 2 : 3;
+
         return {
           ...app,
-          status: decisionStatus,
-          currentStage: 3,
+          status: newStatus as any,
+          currentStage: newStage,
           decisionStatus,
           decisionSource: "admin_override",
           current_stage: decisionStatus,
-          stage_status: decisionStatus,
+          stage_status: decisionStatus === "accepted" ? "accepted" : "rejected",
           decision_status: decisionStatus,
           decision_source: "admin_override",
           resume_decision: decisionStatus,
@@ -641,8 +746,7 @@ export default function AdminPanel({
 
     const label = decisionStatus === "accepted" ? "Accept" : "Reject";
     const shouldContinue = window.confirm(
-      `Apply "${label}" to ${targetEmails.length} selected applicant${
-        targetEmails.length === 1 ? "" : "s"
+      `Apply "${label}" to ${targetEmails.length} selected applicant${targetEmails.length === 1 ? "" : "s"
       }? This will set Stage Status to ${label}ed and Decision Source to Manual Override.`
     );
     if (!shouldContinue) return;
@@ -730,11 +834,11 @@ export default function AdminPanel({
             prev.map((a) =>
               a.email === app.email
                 ? {
-                    ...a,
-                    final_score: data.data.finalScore,
-                    scores: data.data.scores,
-                    scored_at: new Date().toISOString(),
-                  }
+                  ...a,
+                  final_score: data.data.finalScore,
+                  scores: data.data.scores,
+                  scored_at: new Date().toISOString(),
+                }
                 : a
             )
           );
@@ -759,433 +863,463 @@ export default function AdminPanel({
   };
 
   return (
-    <main className="min-h-screen bg-[#d7d7d7] font-sans">
-      <div className="w-full bg-[#efefef]">
-        <div className="grid min-h-screen lg:grid-cols-[250px_1fr]">
-          <aside className="border-b border-[#d8d8d8] bg-[#f2f2f2] lg:border-b-0 lg:border-r">
-            <div className="flex h-full flex-col justify-between p-4 sm:p-5">
-              <div>
-                <div className="mb-10 flex items-end gap-2">
-                  <span className="text-[42px] leading-none tracking-[-0.04em] font-[var(--font-ovo)] text-[#141414]">
-                    hustlr.
-                  </span>
-                  <span className="mb-1 text-[11px] text-[#3f3f3f]">Admin</span>
-                </div>
-
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-[9px] bg-black px-3 py-2 text-left text-[12px] text-white"
-                  >
-                    <LayoutGrid className="h-3.5 w-3.5" />
-                    Student Dashboard
-                  </button>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-[9px] px-3 py-2 text-left text-[12px] text-[#1f1f1f] hover:bg-[#e6e6e6]"
-                  >
-                    <BriefcaseBusiness className="h-3.5 w-3.5" />
-                    Client Dashboard
-                  </button>
-                </div>
+    <main className="min-h-screen bg-white font-sans">
+      <div className="grid min-h-screen lg:grid-cols-[250px_1fr]">
+        {/* Clean white sidebar */}
+        <aside className="border-r border-gray-200 bg-white p-4 sm:p-5">
+          <div className="flex h-full flex-col justify-between">
+            <div>
+              <div className="mb-10 flex items-end gap-2">
+                <span className="font-heading font-bold text-[42px] leading-none tracking-[-0.04em] text-gray-900">
+                  hustlr
+                </span>
+                <span className="mb-1 text-[11px] text-gray-600">Admin</span>
               </div>
 
-              <div className="space-y-2 text-[12px]">
+              <div className="space-y-2">
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-[#1f1f1f] hover:bg-[#e6e6e6]"
+                  className="flex w-full items-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-left text-sm text-white"
                 >
-                  <Settings className="h-3.5 w-3.5" />
-                  Settings
+                  <LayoutGrid className="h-4 w-4" />
+                  Student Dashboard
                 </button>
                 <button
                   type="button"
-                  onClick={handleSignOut}
-                  className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-[#1f1f1f] hover:bg-[#e6e6e6]"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                 >
-                  <LogOut className="h-3.5 w-3.5" />
-                  Logout
+                  <BriefcaseBusiness className="h-4 w-4" />
+                  Client Dashboard
                 </button>
               </div>
             </div>
-          </aside>
 
-          <section className="bg-[#f5f5f5]">
-            <div className="flex flex-col gap-5 p-4 sm:p-7">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-[11px] text-[#757575]">
-                  Pages <span className="mx-1">/</span>
-                  <span className="font-medium text-[#1f1f1f]">
-                    Student Dashboard
-                  </span>
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setShowAlgorithmPanel((prev) => !prev)}
-                  className="rounded-[10px] bg-[#585858] px-6 py-2 text-[12px] text-white shadow-[0_2px_6px_rgba(0,0,0,0.18)] hover:bg-[#4d4d4d]"
-                >
-                  {showAlgorithmPanel ? "Close Stage 1 Algorithm" : "Edit Stage 1 Algorithm"}
-                </button>
-              </div>
+            <div className="space-y-2 text-sm">
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-gray-700 hover:bg-gray-100"
+              >
+                <Settings className="h-4 w-4" />
+                Settings
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-gray-700 hover:bg-gray-100"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
+            </div>
+          </div>
+        </aside>
 
-              <h1 className="text-[30px] leading-tight font-semibold text-[#111111]">
-                Student Dashboard
-              </h1>
+        <section className="bg-gray-50 p-4 sm:p-7">
+          <div className="flex flex-col gap-5">
+            {/* Breadcrumb + "Edit Stage 1 Algorithm" button */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-gray-500">
+                Pages <span className="mx-1">/</span>
+                <span className="font-medium text-gray-800">
+                  Student Dashboard
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowAlgorithmPanel((prev) => !prev)}
+                className="rounded-lg bg-gray-700 px-4 py-2 text-sm text-white shadow-sm hover:bg-gray-600"
+              >
+                {showAlgorithmPanel ? "Close Stage 1 Algorithm" : "Edit Stage 1 Algorithm"}
+              </button>
+            </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.35fr_1fr_1fr_1fr]">
-                <article className="rounded-[13px] border border-[#d4d4d4] bg-[#f7f7f7] px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
-                  <div className="flex items-center justify-between text-[11px] text-[#38b2bf]">
-                    <span>Total Applicants</span>
-                    <ChevronUp className="h-3.5 w-3.5 text-[#666666]" />
-                  </div>
-                  <div className="mt-1 flex items-end gap-2">
-                    <p className="text-[42px] leading-none font-semibold text-[#111111]">
-                      {formatNumber(metrics.totalApplicants)}
-                    </p>
-                    <p className="mb-1 text-[12px] text-[#8ebe43]">
-                      +{formatNumber(metrics.applicantsThisWeek)} this week
-                    </p>
-                  </div>
-                  <div className="mt-3 space-y-2 border-t border-[#e0e0e0] pt-2 text-[11px] text-[#1f1f1f]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#38b2bf]">Application Submitted</span>
-                      <span className="font-semibold">
-                        {formatNumber(metrics.stageSnapshot.application_submitted)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#38b2bf]">Stage 1</span>
-                      <span className="font-semibold">
-                        {formatNumber(metrics.stageSnapshot.resume_screening)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#38b2bf]">Stage 2</span>
-                      <span className="font-semibold">
-                        {formatNumber(metrics.stageSnapshot.test_project)}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 border-t border-[#e6e6e6] pt-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#38b2bf]">Approved</span>
-                        <span className="font-semibold">
-                          {formatNumber(metrics.stageSnapshot.accepted)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#38b2bf]">Rejected</span>
-                        <span className="font-semibold">
-                          {formatNumber(metrics.stageSnapshot.rejected)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </article>
+            <h1 className="text-3xl font-semibold leading-tight text-gray-900">
+              Student Dashboard
+            </h1>
 
-                <article className="rounded-[13px] border border-[#d4d4d4] bg-[#f7f7f7] px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
-                  <div className="flex items-center justify-between text-[11px] text-[#38b2bf]">
-                    <span>Total Projects</span>
-                    <ChevronUp className="h-3.5 w-3.5 text-[#666666]" />
-                  </div>
-                  <p className="mt-2 text-[42px] leading-none font-semibold text-[#111111]">
-                    {formatNumber(metrics.totalProjects)}
-                  </p>
-                  <div className="mt-8 space-y-2 text-[11px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#38b2bf]">Ongoing</span>
-                      <span className="font-semibold text-[#1f1f1f]">
-                        {formatNumber(metrics.projectOngoing)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#38b2bf]">Completed</span>
-                      <span className="font-semibold text-[#1f1f1f]">
-                        {formatNumber(metrics.projectCompleted)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between border-t border-[#e6e6e6] pt-2">
-                      <span className="text-[#38b2bf]">Avg Resume Score</span>
-                      <span className="font-semibold text-[#1f1f1f]">
-                        {metrics.averageResumeScore > 0
-                          ? Math.round(metrics.averageResumeScore)
-                          : "--"}
-                      </span>
-                    </div>
-                  </div>
-                </article>
+            {/* 4 collapsible stat cards */}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 items-start">
 
-                <article className="rounded-[13px] border border-[#d4d4d4] bg-[#f7f7f7] px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
-                  <p className="text-[11px] text-[#38b2bf]">Current Acceptance Rate</p>
-                  <p className="text-[10px] leading-none text-[#8e8e8e]">
-                    students who have been accepted
-                  </p>
-                  <div className="mt-2 flex items-end gap-2">
-                    <p className="text-[42px] leading-none font-semibold text-[#111111]">
-                      {formatPercent(metrics.overallAcceptanceRate)}
-                    </p>
-                    <p className="mb-1 text-[12px] text-[#8ebe43]">
-                      +{formatPercent(metrics.acceptanceRateLift)}
-                    </p>
-                  </div>
-                </article>
-
-                <article className="rounded-[13px] border border-[#d4d4d4] bg-[#f7f7f7] px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-[11px] text-[#38b2bf]">Stage 1 Pass Threshold</p>
-                      <p className="mt-2 text-[46px] leading-none font-semibold text-[#111111]">
-                        {formatPercent(stage1Threshold)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-[#38b2bf]">Stage 1 Pass Rate</p>
-                      <p className="mt-2 text-[46px] leading-none font-semibold text-[#111111]">
-                        {formatPercent(metrics.resumeScreeningPassRate)}
-                      </p>
-                    </div>
-                  </div>
-                </article>
-              </div>
-
-              <AlgorithmConfigPanel
-                jwtToken={jwtToken}
-                isOpen={showAlgorithmPanel}
-                onThresholdChange={setStage1Threshold}
-              />
-
-              <section className="mt-2 rounded-[12px] border border-[#cfcfcf] bg-[#f6f6f6] p-4 sm:p-5">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <SlidersHorizontal className="h-4 w-4 text-[#4f4f4f]" />
-                    <Input
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search by student name, email, or university"
-                      className="h-9 rounded-full border-[#d4d4d4] bg-[#f3f3f3] px-4 text-[12px] text-[#1f1f1f] shadow-none placeholder:text-[#9a9a9a] focus-visible:ring-0"
+              {/* Card 1 — Total Applicants */}
+              <article className="rounded-xl border border-gray-200 bg-white p-5 shadow-[-2px_4px_9px_rgba(0,0,0,0.40)] overflow-visible">
+                {/* Header row */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold" style={{ color: "#57B1B2" }}>Total Applicants</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleCard(0)}
+                    className="rounded-lg p-1.5 text-gray-600 hover:bg-gray-100 transition-colors"
+                    aria-label="Toggle details"
+                  >
+                    <ChevronUp
+                      className={`h-4 w-4 transition-transform duration-200 ${expandedCards.has(0) ? "rotate-0" : "rotate-180"}`}
                     />
+                  </button>
+                </div>
+                {/* Big number */}
+                <div className="mt-1 flex items-baseline gap-2">
+                  <p className="text-4xl font-bold text-gray-900">
+                    {formatNumber(metrics.totalApplicants)}
+                  </p>
+                  <p className="text-sm font-semibold" style={{ color: "#9BBE31" }}>
+                    +{formatNumber(metrics.applicantsThisWeek)} this week
+                  </p>
+                </div>
+                {/* Expanded breakdown */}
+                {expandedCards.has(0) && (
+                  <div className="mt-3 border-t border-gray-100 pt-2">
+                    {/* Stage 1 (Passed AI or Manual) */}
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm" style={{ color: "#57B1B2" }}>Stage 1</span>
+                      <span className="text-2xl font-bold text-gray-900">{formatNumber(metrics.uiStage1)}</span>
+                    </div>
+                    {/* Stage 2 (Total Projects) */}
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm" style={{ color: "#57B1B2" }}>Stage 2</span>
+                      <span className="text-2xl font-bold text-gray-900">{formatNumber(metrics.totalProjects)}</span>
+                    </div>
+                    {/* Approved bottom-left · Rejected bottom-right */}
+                    <div className="flex justify-between pt-3">
+                      <div className="text-center">
+                        <p className="text-sm" style={{ color: "#57B1B2" }}>Approved</p>
+                        <p className="text-2xl font-bold text-gray-900">{formatNumber(metrics.uiApproved)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm" style={{ color: "#57B1B2" }}>Rejected</p>
+                        <p className="text-2xl font-bold text-gray-900">{formatNumber(metrics.uiRejected)}</p>
+                      </div>
+                    </div>
                   </div>
+                )}
+              </article>
 
-                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
-                    <Select
-                      value={stageFilter}
-                      onValueChange={(value) =>
-                        setStageFilter(value as VettingStageFilter)
-                      }
-                    >
-                      <SelectTrigger className="h-8 rounded-[8px] border-[#d0d0d0] bg-[#f3f3f3] text-[12px] shadow-none">
-                        <SelectValue placeholder="Vetting Stage" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Stages</SelectItem>
-                        <SelectItem value="application_submitted">
-                          Application Submitted
-                        </SelectItem>
-                        <SelectItem value="resume_screening">
-                          Resume Screening
-                        </SelectItem>
-                        <SelectItem value="test_project">Test Project</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={decisionFilter}
-                      onValueChange={(value) =>
-                        setDecisionFilter(value as DecisionStatusFilter)
-                      }
-                    >
-                      <SelectTrigger className="h-8 rounded-[8px] border-[#d0d0d0] bg-[#f3f3f3] text-[12px] shadow-none">
-                        <SelectValue placeholder="Decision Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Decisions</SelectItem>
-                        <SelectItem value="accepted">Accepted</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={scoreFilter}
-                      onValueChange={setScoreFilter}
-                    >
-                      <SelectTrigger className="h-8 rounded-[8px] border-[#d0d0d0] bg-[#f3f3f3] text-[12px] shadow-none">
-                        <SelectValue placeholder="AI Score" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Scores</SelectItem>
-                        <SelectItem value="60+">60%+</SelectItem>
-                        <SelectItem value="40-60">40–60%</SelectItem>
-                        <SelectItem value="20-40">20–40%</SelectItem>
-                        <SelectItem value="<20">&lt;20%</SelectItem>
-                        <SelectItem value="unscored">Unscored</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={universityFilter}
-                      onValueChange={setUniversityFilter}
-                    >
-                      <SelectTrigger className="h-8 rounded-[8px] border-[#d0d0d0] bg-[#f3f3f3] text-[12px] shadow-none">
-                        <SelectValue placeholder="University" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Universities</SelectItem>
-                        {universities.map((college) => (
-                          <SelectItem key={college} value={college}>
-                            {college}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <button
-                      type="button"
-                      onClick={resetFilters}
-                      disabled={!hasActiveFilters}
-                      className="h-8 rounded-[8px] border border-[#cdcdcd] bg-[#efefef] text-[12px] text-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Clear Filters
-                    </button>
+              {/* Card 2 — Total Projects */}
+              <article className="rounded-xl border border-gray-200 bg-white p-5 shadow-[-2px_4px_9px_rgba(0,0,0,0.40)] overflow-visible">
+                {/* Header row */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold" style={{ color: "#57B1B2" }}>Total Projects</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleCard(1)}
+                    className="rounded-lg p-1.5 text-gray-600 hover:bg-gray-100 transition-colors"
+                    aria-label="Toggle details"
+                  >
+                    <ChevronUp
+                      className={`h-4 w-4 transition-transform duration-200 ${expandedCards.has(1) ? "rotate-0" : "rotate-180"}`}
+                    />
+                  </button>
+                </div>
+                {/* Big number */}
+                <p className="mt-1 text-4xl font-bold text-gray-900">
+                  {formatNumber(metrics.totalProjects)}
+                </p>
+                {/* Expanded breakdown */}
+                {expandedCards.has(1) && (
+                  <div className="mt-3 border-t border-gray-100 pt-2">
+                    {/* Ongoing */}
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm" style={{ color: "#57B1B2" }}>Ongoing</span>
+                      <span className="text-2xl font-bold text-gray-900">{formatNumber(metrics.projectOngoing)}</span>
+                    </div>
+                    {/* Completed */}
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm" style={{ color: "#57B1B2" }}>Completed</span>
+                      <span className="text-2xl font-bold text-gray-900">{formatNumber(metrics.projectCompleted)}</span>
+                    </div>
                   </div>
+                )}
+              </article>
 
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#747474]">
-                    <p>
-                      Showing {filtered.length} of {applications.length} applicants
+              {/* Card 3 — Current Acceptance Rate (static) */}
+              <article className="rounded-xl border border-gray-200 bg-white p-5 shadow-[-2px_4px_9px_rgba(0,0,0,0.40)] overflow-visible">
+                <p className="text-xs font-semibold" style={{ color: "#57B1B2" }}>Current Acceptance Rate</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">students who have been accepted</p>
+                <div className="mt-2 flex items-baseline gap-1.5">
+                  <p className="text-4xl font-bold text-gray-900">
+                    {formatPercent(metrics.overallAcceptanceRate)}
+                  </p>
+                  <p className="text-sm font-semibold" style={{ color: "#9BBE31" }}>
+                    +{formatPercent(metrics.acceptanceRateLift)}
+                  </p>
+                </div>
+              </article>
+
+              {/* Card 4 — Stage 1 Threshold + Pass Rate (static) */}
+              <article className="rounded-xl border border-gray-200 bg-white p-5 shadow-[-2px_4px_9px_rgba(0,0,0,0.40)] overflow-visible">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: "#57B1B2" }}>Stage 1 Pass Threshold</p>
+                    <p className="mt-2 text-5xl font-bold text-gray-900">
+                      {formatPercent(stage1Threshold)}
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: "#57B1B2" }}>Stage 1 Pass Rate</p>
+                    <p className="mt-2 text-5xl font-bold text-gray-900">
+                      {formatPercent(stage1PassRate)}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <AlgorithmConfigPanel
+              jwtToken={jwtToken}
+              isOpen={showAlgorithmPanel}
+              onThresholdChange={setStage1Threshold}
+            />
+
+            {/* Table inside a rounded card with filter icon + search bar on top */}
+            <section className="mt-2 rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
+              <div className="flex flex-col gap-3">
+                {/* ── Filter bar ── */}
+                <div className="flex items-center gap-3">
+                  {/* Sliders icon — click to open filter popover */}
+                  <div className="relative" ref={filterPanelRef}>
                     <button
                       type="button"
-                      onClick={handleScoreAll}
-                      disabled={batchScoring || unscoredCount === 0}
-                      className="rounded-[8px] border border-[#c4cfd4] bg-[#e8f0f4] px-3 py-1 text-[11px] text-[#2a4a5a] disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => setShowFilterPanel((p) => !p)}
+                      className={`relative flex items-center justify-center rounded-lg p-2 transition-colors ${showFilterPanel
+                        ? "bg-gray-200 text-gray-900"
+                        : "text-gray-1000 hover:bg-gray-100"
+                        }`}
+                      aria-label="Open filters"
                     >
-                      {batchScoring
-                        ? `Scoring ${batchProgress}/${batchTotal}...`
-                        : `Score All Unscored (${unscoredCount})`}
+                      <SlidersHorizontal className="h-4 w-4" />
+                      {/* Active dot */}
+                      {hasActiveFilters && (
+                        <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[#57B1B2]" />
+                      )}
                     </button>
-                    {batchScoring && (
-                      <div className="w-32">
-                        <Progress
-                          value={
-                            batchTotal > 0
-                              ? (batchProgress / batchTotal) * 100
-                              : 0
-                          }
-                        />
+
+                    {/* Floating filter panel */}
+                    {showFilterPanel && (
+                      <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+                        <p className="mb-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Filters</p>
+                        <div className="flex flex-col gap-2.5">
+
+                          {/* Stage */}
+                          <div>
+                            <p className="mb-1 text-[11px] text-gray-400">Vetting Stage</p>
+                            <Select
+                              value={stageFilter}
+                              onValueChange={(value) => setStageFilter(value as VettingStageFilter)}
+                            >
+                              <SelectTrigger className="h-8 rounded-lg border-gray-200 bg-gray-50 text-sm shadow-none">
+                                <SelectValue placeholder="All Stages" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Stages</SelectItem>
+                                <SelectItem value="application_submitted">Application Submitted</SelectItem>
+                                <SelectItem value="resume_screening">Resume Screening</SelectItem>
+                                <SelectItem value="test_project">Test Project</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Decision */}
+                          <div>
+                            <p className="mb-1 text-[11px] text-gray-400">Decision Status</p>
+                            <Select
+                              value={decisionFilter}
+                              onValueChange={(value) => setDecisionFilter(value as DecisionStatusFilter)}
+                            >
+                              <SelectTrigger className="h-8 rounded-lg border-gray-200 bg-gray-50 text-sm shadow-none">
+                                <SelectValue placeholder="All Decisions" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Decisions</SelectItem>
+                                <SelectItem value="accepted">Accepted</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Score */}
+                          <div>
+                            <p className="mb-1 text-[11px] text-gray-400">AI Score</p>
+                            <Select value={scoreFilter} onValueChange={setScoreFilter}>
+                              <SelectTrigger className="h-8 rounded-lg border-gray-200 bg-gray-50 text-sm shadow-none">
+                                <SelectValue placeholder="All Scores" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Scores</SelectItem>
+                                <SelectItem value="60+">60%+</SelectItem>
+                                <SelectItem value="40-60">40–60%</SelectItem>
+                                <SelectItem value="20-40">20–40%</SelectItem>
+                                <SelectItem value="<20">&lt;20%</SelectItem>
+                                <SelectItem value="unscored">Unscored</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* University */}
+                          <div>
+                            <p className="mb-1 text-[11px] text-gray-400">University</p>
+                            <Select value={universityFilter} onValueChange={setUniversityFilter}>
+                              <SelectTrigger className="h-8 rounded-lg border-gray-200 bg-gray-50 text-sm shadow-none">
+                                <SelectValue placeholder="All Universities" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Universities</SelectItem>
+                                {universities.map((college) => (
+                                  <SelectItem key={college} value={college}>{college}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Clear */}
+                          <button
+                            type="button"
+                            onClick={() => { resetFilters(); setShowFilterPanel(false); }}
+                            disabled={!hasActiveFilters}
+                            className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-100 py-1.5 text-sm text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+                          >
+                            Clear Filters
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {selectedApplicantEmails.size > 0 ? (
-                    <div className="flex flex-wrap items-center gap-2 rounded-[10px] border border-[#d5d5d5] bg-[#ececec] p-2.5 text-[11px]">
-                      <p className="mr-1 text-[#303030]">
-                        Bulk Actions: {selectedApplicantEmails.size} selected
+                  {/* Search input */}
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search by student name, email, or university"
+                    className="h-9 flex-1 rounded-full border-gray-400 bg-gray-50 px-4 text-sm text-gray-900 shadow-none placeholder:text-gray-400 focus-visible:ring-0"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                  <p>
+                    Showing {filtered.length} of {applications.length} applicants
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleScoreAll}
+                    disabled={batchScoring || unscoredCount === 0}
+                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-blue-100"
+                  >
+                    {batchScoring
+                      ? `Scoring ${batchProgress}/${batchTotal}...`
+                      : `Score All Unscored (${unscoredCount})`}
+                  </button>
+                  {batchScoring && (
+                    <div className="w-32">
+                      <Progress
+                        value={
+                          batchTotal > 0
+                            ? (batchProgress / batchTotal) * 100
+                            : 0
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {selectedApplicantEmails.size > 0 ? (
+                  <div className="flex flex-wrap items-center justify-between gap-4 transition-all pb-2">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black text-xs font-bold text-white">
+                        {selectedApplicantEmails.size}
+                      </span>
+                      <p className="text-sm font-medium text-black">
+                        {selectedApplicantEmails.size === 1 ? "applicant selected" : "applicants selected"}
                       </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleSelectAllVisible(previousSelectionRef.current !== null ? false : true)}
+                        className="flex items-center gap-1.5 rounded-lg bg-black px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-gray-800 transition-colors"
+                      >
+                        {previousSelectionRef.current !== null ? (
+                          <CheckSquare className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <Square className="h-4 w-4 shrink-0" />
+                        )}
+                        Select All
+                      </button>
+
+                      <div className="mx-1 h-4 w-[1px] bg-gray-300"></div>
+
                       <button
                         type="button"
                         onClick={() => runBulkDecision("accepted")}
                         disabled={bulkActionInProgress !== null}
-                        className="rounded-[7px] border border-[#bfcbb1] bg-[#e4f2d7] px-3 py-1 text-[#314321] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex items-center gap-1.5 rounded-lg bg-black px-4 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-gray-800 disabled:opacity-50 transition-colors"
                       >
-                        {bulkActionInProgress === "accepted"
-                          ? "Accepting..."
-                          : "Accept"}
+                        <Check className="h-4 w-4 shrink-0" />
+                        {bulkActionInProgress === "accepted" ? "Accepting..." : "Accept"}
                       </button>
+
                       <button
                         type="button"
                         onClick={() => runBulkDecision("rejected")}
                         disabled={bulkActionInProgress !== null}
-                        className="rounded-[7px] border border-[#d5b8b8] bg-[#f7e5e5] px-3 py-1 text-[#5e2d2d] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex items-center gap-1.5 rounded-lg bg-black px-4 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-gray-800 disabled:opacity-50 transition-colors"
                       >
-                        {bulkActionInProgress === "rejected"
-                          ? "Rejecting..."
-                          : "Reject"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          toast.info(
-                            "Bulk Move Stage is available in the action bar and will be wired in the next update."
-                          )
-                        }
-                        disabled={bulkActionInProgress !== null}
-                        className="rounded-[7px] border border-[#d0d0d0] bg-[#f2f2f2] px-3 py-1 text-[#4d4d4d] disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        Move Stage
+                        <X className="h-4 w-4 shrink-0" />
+                        {bulkActionInProgress === "rejected" ? "Rejecting..." : "Reject"}
                       </button>
                     </div>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
 
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full min-w-[1080px] border-collapse text-left">
                     <thead>
-                      <tr className="text-[10px] text-[#222222]">
-                        <th className="w-7 border-b border-[#d4d4d4] pb-2">
+                      <tr className="text-sm font-semibold text-gray-800">
+                        <th className="w-7 border-b border-gray-200 pb-2">
                           <input
                             ref={selectAllVisibleRef}
                             type="checkbox"
                             checked={allVisibleSelected}
                             onChange={(event) =>
-                              toggleSelectAllVisible(event.target.checked)
+                              toggleSelectAllVisible(
+                                event.target.checked && previousSelectionRef.current !== null
+                                  ? false
+                                  : event.target.checked
+                              )
                             }
                             aria-label="Select all visible applicants"
-                            className="h-3.5 w-3.5 rounded border border-[#c7c7c7] bg-transparent"
+                            className="h-3.5 w-3.5 rounded border border-gray-300 bg-white text-blue-600 focus:ring-blue-500"
                           />
                         </th>
-                        <th className="border-b border-[#d4d4d4] pb-2 pr-3 font-medium">
-                          Name
-                        </th>
-                        <th className="border-b border-[#d4d4d4] pb-2 pr-3 font-medium">
-                          College
-                        </th>
-                        <th className="border-b border-[#d4d4d4] pb-2 pr-3 font-medium">
-                          Role
-                        </th>
-                        <th className="border-b border-[#d4d4d4] pb-2 pr-3 font-medium">
-                          Stage
-                          <p className="text-[8.5px] font-normal text-[#6f6f6f]">
-                            only 1 or 2
-                          </p>
-                        </th>
-                        <th className="border-b border-[#d4d4d4] pb-2 pr-3 font-medium">
+                        <th className="border-b border-gray-200 pb-2 pr-3">Name</th>
+                        <th className="border-b border-gray-200 pb-2 pr-3">College</th>
+                        <th className="border-b border-gray-200 pb-2 pr-3">Role</th>
+                        <th className="border-b border-gray-200 pb-2 pr-3">
                           <button
                             type="button"
                             onClick={toggleScoreSort}
-                            className="flex items-center gap-1 hover:text-[#38b2bf] transition-colors"
+                            className="flex items-center gap-1 hover:text-blue-600 transition-colors"
                           >
                             AI Score
-                            <ArrowUpDown className="h-2.5 w-2.5" />
+                            <ArrowUpDown className="h-3 w-3" />
                             {scoreSort !== "none" && (
-                              <span className="text-[8px] text-[#6f6f6f]">
+                              <span className="text-[9px] text-gray-500">
                                 {scoreSort === "desc" ? "↓" : "↑"}
                               </span>
                             )}
                           </button>
                         </th>
-                        <th className="border-b border-[#d4d4d4] pb-2 pr-3 font-medium">
-                          Status
-                          <p className="text-[8.5px] font-normal text-[#6f6f6f]">
-                            pending, approved, rejected
-                          </p>
-                        </th>
-                        <th className="border-b border-[#d4d4d4] pb-2 pr-3 font-medium">
-                          Decision
-                          <p className="text-[8.5px] font-normal text-[#6f6f6f]">
-                            pending, algo approved, manual override
-                          </p>
-                        </th>
-                        <th className="border-b border-[#d4d4d4] pb-2 pr-3 font-medium">
-                          Application Date
-                        </th>
-                        <th className="border-b border-[#d4d4d4] pb-2"></th>
+                        <th className="border-b border-gray-200 pb-2 pr-3">Status</th>
+                        <th className="border-b border-gray-200 pb-2 pr-3">Decision</th>
+                        <th className="border-b border-gray-200 pb-2 pr-3">Application Date</th>
+                        <th className="border-b border-gray-200 pb-2"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {loading ? (
                         <tr>
                           <td
-                            colSpan={10}
-                            className="py-10 text-center text-[12px] text-[#707070]"
+                            colSpan={9}
+                            className="py-10 text-center text-sm text-gray-500"
                           >
                             Loading applicants...
                           </td>
@@ -1194,11 +1328,8 @@ export default function AdminPanel({
                         filtered.map((app, index) => (
                           <tr
                             key={`${app.email}-${index}`}
-                            className={`border-b border-[#dfdfdf] text-[10.5px] text-[#2f2f2f] ${
-                              selectedApplicantEmails.has(app.email)
-                                ? "bg-[#ebeff1]"
-                                : "bg-transparent"
-                            }`}
+                            className={`border-b border-gray-100 text-sm text-gray-800 ${selectedApplicantEmails.has(app.email) ? "bg-blue-50" : "bg-white"
+                              }`}
                           >
                             <td className="py-2">
                               <input
@@ -1206,29 +1337,77 @@ export default function AdminPanel({
                                 checked={selectedApplicantEmails.has(app.email)}
                                 onChange={() => toggleApplicantSelection(app.email)}
                                 aria-label={`Select ${app.name || app.email}`}
-                                className="h-3.5 w-3.5 rounded border border-[#c7c7c7] bg-transparent"
+                                className="h-3.5 w-3.5 rounded border border-gray-300 bg-white text-blue-600 focus:ring-blue-500"
                               />
                             </td>
                             <td className="py-2 pr-3">{app.name || "N/A"}</td>
                             <td className="py-2 pr-3">{app.college || "N/A"}</td>
                             <td className="py-2 pr-3">{formatRole(app.category)}</td>
-                            <td className="py-2 pr-3">{getStageNumber(app)}</td>
                             <td className="py-2 pr-3">
-                              <ScoreBadge score={app.final_score} />
+                              <ScoreBadge score={app.final_score} threshold={stage1Threshold} />
                             </td>
+                            {/* Status — vetting stage in the pipeline */}
                             <td className="py-2 pr-3">
-                              {DECISION_STATUS_LABELS[getDecisionStatus(app)]}
+                              {(() => {
+                                const stage = getVettingStage(app);
+                                const stageLabels: Record<string, { label: string; cls: string }> = {
+                                  application_submitted: { label: "Submitted", cls: "bg-gray-100 text-gray-700" },
+                                  resume_screening: { label: "Stage 1", cls: "bg-blue-50 text-blue-700" },
+                                  test_project: { label: "Stage 2", cls: "bg-purple-50 text-purple-700" },
+                                };
+                                const { label, cls } = stageLabels[stage] ?? { label: stage, cls: "bg-gray-100 text-gray-600" };
+                                return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>;
+                              })()}
                             </td>
-                            <td className="py-2 pr-3">{getDecisionSummary(app)}</td>
+                            {/* Decision — derived from score vs threshold or manual override */}
                             <td className="py-2 pr-3">
-                              {formatApplicationDate(app)}
+                              {(() => {
+                                const source = String(
+                                  (app as any).decision_source ||
+                                  app.decisionSource ||
+                                  ""
+                                ).trim().toLowerCase();
+                                const isManual =
+                                  source === "admin_override" ||
+                                  app.status === "accepted" ||
+                                  app.status === "rejected";
+
+                                // Case 3: manual admin override
+                                if (isManual) {
+                                  const storedDecision = getDecisionStatus(app);
+                                  const isApproved = storedDecision === "accepted";
+                                  return (
+                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${isApproved ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                                      {isApproved ? "Admin Approved" : "Admin Rejected"}
+                                    </span>
+                                  );
+                                }
+
+                                // Case 1: not yet scored → pending
+                                const score = app.final_score;
+                                if (score == null) {
+                                  return (
+                                    <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-yellow-50 text-yellow-700">
+                                      Pending
+                                    </span>
+                                  );
+                                }
+
+                                // Case 2: scored by AI — compare against threshold
+                                const algoApproved = score >= stage1Threshold;
+                                return (
+                                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${algoApproved ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                                    {algoApproved ? "Algo Approved" : "Algo Rejected"}
+                                  </span>
+                                );
+                              })()}
                             </td>
+                            <td className="py-2 pr-3">{formatApplicationDate(app)}</td>
                             <td className="py-2">
                               <a
-                                href={`/admin/applications/${encodeURIComponent(
-                                  app.email
-                                )}`}
-                                className="inline-flex rounded-full bg-[#e5e5e5] px-3 py-1 text-[9.5px] text-[#5b5b5b] hover:bg-[#dddddd]"
+                                href={`/admin/applications/${encodeURIComponent(app.email)}`}
+                                className="inline-flex rounded-full px-3 py-1 text-xs font-medium text-gray-900 hover:opacity-80 transition-opacity"
+                                style={{ backgroundColor: "#57B1B2" }}
                               >
                                 View
                               </a>
@@ -1238,8 +1417,8 @@ export default function AdminPanel({
                       ) : (
                         <tr>
                           <td
-                            colSpan={10}
-                            className="py-10 text-center text-[12px] text-[#707070]"
+                            colSpan={9}
+                            className="py-10 text-center text-sm text-gray-500"
                           >
                             No applications found
                           </td>
@@ -1247,12 +1426,12 @@ export default function AdminPanel({
                       )}
                     </tbody>
                   </table>
-                </div>
-              </section>
-            </div>
-          </section>
-        </div>
-      </div>
-    </main>
+                </div>{/* end table overflow-auto */}
+              </div>{/* end flex-col gap-3 */}
+            </section>{/* end table card */}
+          </div>{/* end flex-col gap-5 */}
+        </section>{/* end bg-gray-50 */}
+      </div > {/* end grid */}
+    </main >
   );
 }

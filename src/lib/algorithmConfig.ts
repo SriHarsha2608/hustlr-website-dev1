@@ -14,7 +14,7 @@ export type ScoringAlgorithmConfig = {
 
 /** Default scoring categories matching the scoring engine (scoring_config table). */
 export const DEFAULT_SCORING_CONFIG: ScoringAlgorithmConfig = {
-  threshold: 75,
+  threshold: 50,
   totalWeight: 180,
   factors: [
     {

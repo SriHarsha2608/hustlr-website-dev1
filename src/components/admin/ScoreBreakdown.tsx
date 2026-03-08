@@ -34,44 +34,22 @@ const CATEGORY_LABELS: Record<string, string> = {
   open_source: "Open Source",
 };
 
-const CATEGORY_ICONS: Record<string, string> = {
-  projects: "🚀",
-  hackathons: "🏆",
-  open_source: "🌐",
-  internships: "💼",
-  research: "📄",
-  cp_platform: "⚡",
-  cp_competitions: "🏅",
-  skills: "🛠",
-  cgpa: "🎓",
-};
+const CATEGORY_ICONS: Record<string, string> = {};
 
-function barColor(pct: number): string {
-  if (pct >= 70) return "bg-emerald-500";
-  if (pct >= 40) return "bg-amber-500";
-  if (pct >= 20) return "bg-orange-500";
-  return "bg-red-500";
+function barColor(_pct: number): string {
+  return "bg-gray-800";
 }
 
-function barTrack(pct: number): string {
-  if (pct >= 70) return "bg-emerald-100";
-  if (pct >= 40) return "bg-amber-100";
-  if (pct >= 20) return "bg-orange-100";
-  return "bg-red-100";
+function barTrack(_pct: number): string {
+  return "bg-gray-100";
 }
 
-function heroColor(score: number): string {
-  if (score >= 70) return "text-emerald-600";
-  if (score >= 40) return "text-amber-600";
-  if (score >= 20) return "text-orange-600";
-  return "text-red-600";
+function heroColor(_score: number): string {
+  return "text-gray-800";
 }
 
-function heroRing(score: number): string {
-  if (score >= 70) return "ring-emerald-200";
-  if (score >= 40) return "ring-amber-200";
-  if (score >= 20) return "ring-orange-200";
-  return "ring-red-200";
+function heroRing(_score: number): string {
+  return "border-gray-200";
 }
 
 function heroLabel(score: number): string {
@@ -81,16 +59,13 @@ function heroLabel(score: number): string {
   return "Weak Profile";
 }
 
-function scoreBadgeColor(score: number | undefined | null): string {
+function scoreBadgeColor(score: number | undefined | null, threshold: number = 50): string {
   if (score === undefined || score === null) return "bg-gray-100 text-gray-500";
-  if (score >= 70) return "bg-emerald-100 text-emerald-700";
-  if (score >= 40) return "bg-yellow-100 text-yellow-700";
-  if (score >= 20) return "bg-orange-100 text-orange-700";
-  return "bg-red-100 text-red-700";
+  return score >= threshold ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700";
 }
 
 /** Compact score badge for the admin list page */
-export function ScoreBadge({ score }: { score?: number | null }) {
+export function ScoreBadge({ score, threshold = 50 }: { score?: number | null, threshold?: number }) {
   if (score === undefined || score === null) {
     return (
       <span className="inline-block px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-500">
@@ -100,7 +75,7 @@ export function ScoreBadge({ score }: { score?: number | null }) {
   }
   return (
     <span
-      className={`inline-block px-2 py-0.5 text-xs font-medium rounded ${scoreBadgeColor(score)}`}
+      className={`inline-block px-2 py-0.5 text-xs font-medium rounded ${scoreBadgeColor(score, threshold)}`}
     >
       {score.toFixed(1)}%
     </span>
@@ -216,7 +191,7 @@ function HackathonReasoning({ reasoning }: { reasoning: string }) {
   const weightedAvgMatch = reasoning.match(/Weighted avg:\s*(.+)/);
   const hackBlocks = reasoning
     .replace(/\.\s*Weighted avg:.*$/, "")
-    .split(/(?=H\d+[\(:])/  )
+    .split(/(?=H\d+[\(:])/)
     .filter((b) => b.trim());
 
   return (
@@ -376,7 +351,7 @@ function SkillsReasoning({ reasoning }: { reasoning: string }) {
           <div className="flex flex-wrap gap-1.5">
             {verifiedSkills.map((s) => (
               <span key={s} className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">
-                ✓ {s}
+                {s}
               </span>
             ))}
           </div>
@@ -432,7 +407,6 @@ function InternshipsReasoning({ reasoning }: { reasoning: string }) {
         {rows.map((r) => (
           <div key={r.label} className="flex items-center justify-between px-3 py-2.5">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm">{r.emoji}</span>
               <div className="min-w-0">
                 <span className="text-xs font-semibold text-gray-700">{r.value}</span>
                 {r.detail && (
@@ -489,7 +463,6 @@ function OpenSourceReasoning({ reasoning }: { reasoning: string }) {
         {rows.map((r) => (
           <div key={r.label} className="flex items-center justify-between px-3 py-2.5">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm">{r.emoji}</span>
               <div className="min-w-0">
                 <span className="text-xs font-semibold text-gray-700">{r.value}</span>
                 {r.detail && (
@@ -530,7 +503,6 @@ function ResearchReasoning({ reasoning }: { reasoning: string }) {
     return (
       <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
         <div className="flex items-center gap-2">
-          <span className="text-sm">📝</span>
           <span className="text-xs text-gray-600">Active researcher, no published papers listed</span>
           <span className={`text-xs font-bold px-1.5 py-0.5 rounded ml-auto ${dimColor(2, 10)}`}>2/10</span>
         </div>
@@ -551,7 +523,6 @@ function ResearchReasoning({ reasoning }: { reasoning: string }) {
     <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm">📄</span>
           <span className="text-xs font-semibold text-gray-700">Best Publication</span>
         </div>
         <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${dimColor(score, max)}`}>
@@ -640,7 +611,6 @@ function CpCompetitionsReasoning({ reasoning }: { reasoning: string }) {
     <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm">🏅</span>
           <span className="text-xs font-semibold text-gray-700">Best Result</span>
         </div>
         <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${dimColor(score, max)}`}>
@@ -683,12 +653,11 @@ function CgpaReasoning({ reasoning }: { reasoning: string }) {
             <span className="text-lg font-bold text-gray-900">{cgpa}</span>
             <span className="text-[11px] text-gray-400 ml-1">CGPA</span>
           </div>
-          <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-            cgpa >= 9 ? "bg-emerald-50 text-emerald-700" :
+          <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${cgpa >= 9 ? "bg-emerald-50 text-emerald-700" :
             cgpa >= 8 ? "bg-blue-50 text-blue-700" :
-            cgpa >= 6 ? "bg-amber-50 text-amber-700" :
-            "bg-orange-50 text-orange-700"
-          }`}>
+              cgpa >= 6 ? "bg-amber-50 text-amber-700" :
+                "bg-orange-50 text-orange-700"
+            }`}>
             {tier}
           </span>
         </div>
@@ -777,7 +746,6 @@ function CategoryCard({ s }: { s: CategoryScore }) {
       <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4 opacity-60">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{icon}</span>
             <span className="font-semibold text-gray-400">
               {CATEGORY_LABELS[s.category] || s.category}
             </span>
@@ -786,8 +754,7 @@ function CategoryCard({ s }: { s: CategoryScore }) {
             w{s.weight}%
           </span>
         </div>
-        <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
-          <AlertCircle className="size-3.5" />
+        <div className="mt-2 text-sm text-gray-400">
           <span>{s.reasoning}</span>
         </div>
       </div>
@@ -799,12 +766,11 @@ function CategoryCard({ s }: { s: CategoryScore }) {
       {/* Header: name + percentage */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-lg">{icon}</span>
           <span className="font-semibold text-gray-900 text-base">
             {CATEGORY_LABELS[s.category] || s.category}
           </span>
         </div>
-        <span className={`text-lg font-bold ${pct >= 70 ? "text-emerald-600" : pct >= 40 ? "text-amber-600" : "text-orange-600"}`}>
+        <span className="text-lg font-bold text-gray-800">
           {Math.round(pct)}%
         </span>
       </div>
@@ -840,17 +806,10 @@ function CategoryCard({ s }: { s: CategoryScore }) {
       {/* Expandable reasoning */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="mt-3 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+        className="mt-3 w-full flex justify-center p-1.5 rounded-md hover:bg-gray-100 transition-colors text-gray-400 hover:text-black"
+        title={expanded ? "Hide details" : "View evaluation"}
       >
-        {expanded ? (
-          <>
-            <ChevronUp className="size-3" /> Hide details
-          </>
-        ) : (
-          <>
-            <ChevronDown className="size-3" /> View evaluation
-          </>
-        )}
+        {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
       </button>
       {expanded && (
         <div className="mt-2">
@@ -881,7 +840,7 @@ export function ScoreBreakdown({
     <div className="mt-6 space-y-6">
       {/* ─── Hero: Overall Score ─── */}
       <div className={`rounded-xl border-2 ${heroRing(finalScore)} bg-white p-6 text-center shadow-sm`}>
-        <p className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-1">
+        <p className="text-sm font-medium text-gray-800 uppercase tracking-wider mb-1">
           Overall Profile Score
         </p>
         <p className={`text-5xl font-extrabold tracking-tight ${heroColor(finalScore)}`}>
@@ -928,14 +887,31 @@ export function ScoreBreakdown({
   );
 }
 
-/** Score action button + breakdown for the application detail page */
-export function ScoreSection({
+/** Score action button + breakdown — split into two renderable parts via shared state */
+
+interface ScoreSectionState {
+  loading: boolean;
+  scores: Record<string, CategoryScore> | null;
+  finalScore: number | null;
+  researchBoosted: boolean;
+  scoredAt: string | null;
+  handleScore: () => void;
+}
+
+// Simple module-level registry so ScoreButton and ScoreBreakdownDisplay
+// can share the same state instance rendered by ScoreSectionProvider.
+import React, { createContext, useContext } from "react";
+
+const ScoreCtx = createContext<ScoreSectionState | null>(null);
+
+export function ScoreSectionProvider({
   email,
   jwtToken,
   initialScores,
   initialFinalScore,
   initialResearchBoosted,
   initialScoredAt,
+  children,
 }: {
   email: string;
   jwtToken: string;
@@ -943,6 +919,7 @@ export function ScoreSection({
   initialFinalScore?: number | null;
   initialResearchBoosted?: boolean;
   initialScoredAt?: string | null;
+  children: React.ReactNode;
 }) {
   const [loading, setLoading] = useState(false);
   const [scores, setScores] = useState<Record<string, CategoryScore> | null>(
@@ -958,7 +935,7 @@ export function ScoreSection({
     initialScoredAt || null
   );
 
-  const handleScore = async (force?: boolean) => {
+  const handleScore = async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/scoreApplication", {
@@ -988,29 +965,69 @@ export function ScoreSection({
   };
 
   return (
-    <div className="mt-6">
-      <div className="flex gap-3">
-        <Button
-          onClick={() => handleScore(false)}
-          disabled={loading}
-          className="font-sans"
-        >
-          {loading
-            ? "Scoring..."
-            : scores
-              ? "Re-score Application"
-              : "Score Application"}
-        </Button>
-      </div>
+    <ScoreCtx.Provider
+      value={{ loading, scores, finalScore, researchBoosted, scoredAt, handleScore }}
+    >
+      {children}
+    </ScoreCtx.Provider>
+  );
+}
 
-      {scores && finalScore !== null && (
-        <ScoreBreakdown
-          scores={scores}
-          finalScore={finalScore}
-          researchBoosted={researchBoosted}
-          scoredAt={scoredAt ?? undefined}
-        />
-      )}
-    </div>
+/** Drop this next to the title — renders only the button */
+export function ScoreButton() {
+  const ctx = useContext(ScoreCtx);
+  if (!ctx) return null;
+  const { loading, scores, handleScore } = ctx;
+  return (
+    <Button onClick={handleScore} disabled={loading} className="font-sans">
+      {loading ? "Scoring..." : scores ? "Re-score Application" : "Score Application"}
+    </Button>
+  );
+}
+
+/** Drop this wherever you want the breakdown to appear (full-width, in normal flow) */
+export function ScoreBreakdownDisplay() {
+  const ctx = useContext(ScoreCtx);
+  if (!ctx) return null;
+  const { scores, finalScore, researchBoosted, scoredAt } = ctx;
+  if (!scores || finalScore === null) return null;
+  return (
+    <ScoreBreakdown
+      scores={scores}
+      finalScore={finalScore}
+      researchBoosted={researchBoosted}
+      scoredAt={scoredAt ?? undefined}
+    />
+  );
+}
+
+/** @deprecated use ScoreSectionProvider + ScoreButton + ScoreBreakdownDisplay instead */
+export function ScoreSection({
+  email,
+  jwtToken,
+  initialScores,
+  initialFinalScore,
+  initialResearchBoosted,
+  initialScoredAt,
+}: {
+  email: string;
+  jwtToken: string;
+  initialScores?: Record<string, CategoryScore> | null;
+  initialFinalScore?: number | null;
+  initialResearchBoosted?: boolean;
+  initialScoredAt?: string | null;
+}) {
+  return (
+    <ScoreSectionProvider
+      email={email}
+      jwtToken={jwtToken}
+      initialScores={initialScores}
+      initialFinalScore={initialFinalScore}
+      initialResearchBoosted={initialResearchBoosted}
+      initialScoredAt={initialScoredAt}
+    >
+      <ScoreButton />
+      <ScoreBreakdownDisplay />
+    </ScoreSectionProvider>
   );
 }

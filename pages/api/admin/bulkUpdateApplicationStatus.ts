@@ -77,6 +77,15 @@ export default async function handler(
       .json({ success: false, error: "No valid applicant emails provided" });
   }
 
+  const { data: existingApps, error: fetchErr } = await supabaseAdmin
+    .from("vettingapplications")
+    .select("email, currentStage, status")
+    .in("email", normalizedEmails);
+
+  if (fetchErr) {
+    return res.status(500).json({ success: false, error: fetchErr.message });
+  }
+
   const normalizedDecisionStatus = parseBulkDecisionStatus(decisionStatus);
   if (!normalizedDecisionStatus) {
     return res.status(400).json({
@@ -85,65 +94,67 @@ export default async function handler(
     });
   }
 
-  const baseUpdatePayload: Record<string, unknown> = {
-    currentStage: 3,
-    status: normalizedDecisionStatus,
-  };
+  const updatePromises = (existingApps || []).map((app) => {
+    const isReject = normalizedDecisionStatus === "rejected";
+    const oldStage = app.currentStage || 1;
+    // Approving someone in stage 1 -> moves them to stage 2 (round_2_eligible).
+    // Approving someone in stage >= 2 -> moves them to stage 3 (final accepted).
+    const newStatus = isReject
+      ? "rejected"
+      : oldStage < 2
+        ? "round_2_eligible"
+        : "accepted";
+    const newStage = isReject ? 3 : oldStage < 2 ? 2 : 3;
 
-  const extendedPayload: Record<string, unknown> = {
-    ...baseUpdatePayload,
-    decisionStatus: normalizedDecisionStatus,
-    decisionSource: "admin_override",
-    algorithmDecision: normalizedDecisionStatus,
-    current_stage: normalizedDecisionStatus,
-    stage_status: normalizedDecisionStatus === "accepted" ? "accepted" : normalizedDecisionStatus === "rejected" ? "rejected" : "pending",
-    decision_status: normalizedDecisionStatus,
-    decision_source: "admin_override",
-    resume_decision: normalizedDecisionStatus,
-    decisionUpdatedAt: new Date().toISOString(),
-  };
+    const baseUpdatePayload: Record<string, unknown> = {
+      currentStage: newStage,
+      status: newStatus,
+    };
 
-  if (payload?.email) {
-    extendedPayload.decisionUpdatedBy = payload.email;
-  }
+    const extendedPayload: Record<string, unknown> = {
+      ...baseUpdatePayload,
+      decisionStatus: normalizedDecisionStatus,
+      decisionSource: "admin_override",
+      algorithmDecision: normalizedDecisionStatus,
+      current_stage: normalizedDecisionStatus,
+      stage_status: normalizedDecisionStatus === "accepted" ? "accepted" : "rejected",
+      decision_status: normalizedDecisionStatus,
+      decision_source: "admin_override",
+      resume_decision: normalizedDecisionStatus,
+      decisionUpdatedAt: new Date().toISOString(),
+    };
 
-  const updateWithPayload = async (payloadToSave: Record<string, unknown>) =>
-    supabaseAdmin
-      .from("vettingapplications")
-      .update(payloadToSave)
-      .in("email", normalizedEmails)
-      .select("email");
-
-  let { data, error } = await updateWithPayload(extendedPayload);
-
-  const unknownColumnPattern =
-    /column .* does not exist|could not find the .* column|schema cache/i;
-  if (
-    error &&
-    Object.keys(extendedPayload).length > Object.keys(baseUpdatePayload).length &&
-    unknownColumnPattern.test(error.message || "")
-  ) {
-    const fallback = await updateWithPayload(baseUpdatePayload);
-    data = fallback.data;
-    error = fallback.error;
-    if (!error) {
-      return res.status(200).json({
-        success: true,
-        data,
-        updatedCount: Array.isArray(data) ? data.length : 0,
-        warning:
-          "Decision source/status columns are missing in DB. Stage and status were updated.",
-      });
+    if (payload?.email) {
+      extendedPayload.decisionUpdatedBy = payload.email;
     }
-  }
 
-  if (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    return supabaseAdmin
+      .from("vettingapplications")
+      .update(extendedPayload)
+      .eq("email", app.email)
+      .then((res) => {
+        // Fallback to base payload if extended columns are missing
+        const unknownColumnPattern = /column .* does not exist|could not find the .* column|schema cache/i;
+        if (res.error && unknownColumnPattern.test(res.error.message || "")) {
+          return supabaseAdmin.from("vettingapplications").update(baseUpdatePayload).eq("email", app.email);
+        }
+        return res;
+      });
+  });
+
+  const results = await Promise.all(updatePromises);
+  const failedCount = results.filter((r) => r.error).length;
+
+  if (failedCount > 0) {
+    return res.status(500).json({
+      success: false,
+      error: `Failed to update ${failedCount} applicants`
+    });
   }
 
   return res.status(200).json({
     success: true,
-    data,
-    updatedCount: Array.isArray(data) ? data.length : 0,
+    data: existingApps,
+    updatedCount: existingApps.length - failedCount,
   });
 }

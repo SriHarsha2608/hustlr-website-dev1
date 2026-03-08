@@ -148,7 +148,7 @@ export default function Vetting({
             {alreadyCompleted ? (
               <div className="py-6 rounded-lg text-black font-medium text-xl">
                 <p className="mb-5">
-                  <span className="block mb-2 font-heading text-4xl">
+                  <span className="block mb-2 font-heading text-2xl font-bold">
                     Hey{" "}
                     {vettingProgressResponse?.success
                       ? vettingProgressResponse.data.name
@@ -158,7 +158,7 @@ export default function Vetting({
                 </p>
                 <Link
                   href={`/get-started/student/application`}
-                  className="self-start font-sans font-medium text-sm px-3 py-2 text-black bg-white border border-gray-700/40 hover:bg-gray-500/20 transition-colors rounded flex items-center justify-center gap-2 mb-4"
+                  className="self-start font-heading font-medium text-sm px-3 py-2 text-black bg-white border border-gray-700/40 hover:bg-gray-500/20 transition-colors rounded flex items-center justify-center gap-2 mb-4"
                 >
                   <ArrowLeft className="size-5" />
                   Back to Applications

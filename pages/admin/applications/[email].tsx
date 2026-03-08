@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { createToken, verifyToken } from "@/src/lib/jwt";
-import { ApplicationStatusCard } from "@/src/components/admin/ApplicationStatusMsg";
-import { StatusUpdateForm } from "@/src/components/admin/ApplicationStatusUpdate";
-import { ScoreSection } from "@/src/components/admin/ScoreBreakdown";
+import {
+  ScoreSectionProvider,
+  ScoreButton,
+  ScoreBreakdownDisplay,
+} from "@/src/components/admin/ScoreBreakdown";
 import ApplicantDetailView from "@/src/components/admin/ApplicantDetailView";
 import Nav from "@/src/components/Nav";
 import { GetVettingProgressResponse } from "@/src/lib/schemas/formSchema";
@@ -73,33 +75,33 @@ export default function ProjectInfoPage({
               <ArrowLeft /> Back to Applications
             </a>
           </Button>
-          <h1 className="font-bold text-3xl text-center">
-            Application Details
-          </h1>
+          <ScoreSectionProvider
+            email={res.data.email}
+            jwtToken={adminJwtToken}
+            initialScores={res.data.scores}
+            initialFinalScore={res.data.final_score}
+            initialScoredAt={res.data.scored_at}
+          >
+            {/* Header row: centered title + rescore button on the right */}
+            <div className="grid grid-cols-3 items-center px-10">
+              <div /> {/* left spacer */}
+              <h1 className="font-bold text-3xl text-center">
+                Application Details
+              </h1>
+              <div className="flex justify-end">
+                <ScoreButton />
+              </div>
+            </div>
 
-          <ApplicationStatusCard data={res.data} />
-
-          {/* Scoring Section */}
-          <div className="px-10 max-w-screen-lg mx-auto font-sans">
-            <ScoreSection
-              email={res.data.email}
-              jwtToken={adminJwtToken}
-              initialScores={res.data.scores}
-              initialFinalScore={res.data.final_score}
-              initialScoredAt={res.data.scored_at}
-            />
-          </div>
+            {/* Breakdown renders full-width below the header */}
+            <div className="px-10 mt-4">
+              <ScoreBreakdownDisplay />
+            </div>
+          </ScoreSectionProvider>
 
           <div className="p-10 max-w-screen-lg mx-auto font-sans">
             <ApplicantDetailView jwtToken={userJwtToken} data={res.data} />
           </div>
-
-          <StatusUpdateForm
-            jwtToken={adminJwtToken}
-            currentStatus={res.data.status || "not_completed"}
-            currentDecisionSource={res.data.decisionSource || "algorithm"}
-            email={res.data.email}
-          />
         </div>
       </main>
     </>
