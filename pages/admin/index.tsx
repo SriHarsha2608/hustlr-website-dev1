@@ -68,8 +68,39 @@ function normalizeStage(raw: unknown): VettingStage | null {
   return null;
 }
 
-function getVettingStage(application: SupabaseVettingData): VettingStage {
+function getVettingStage(application: SupabaseVettingData, stage1Threshold?: number): VettingStage {
   const explicitStage = normalizeStage((application as any).current_stage);
+
+  // Check if this applicant has been approved (algo or admin)
+  const isApproved = (() => {
+    // Admin override accepted
+    const source = String(
+      (application as any).decision_source ||
+      application.decisionSource ||
+      ""
+    ).trim().toLowerCase();
+    if (source === "admin_override") {
+      const decision = getDecisionStatus(application);
+      return decision === "accepted";
+    }
+    // Algo approved (score >= threshold)
+    if (stage1Threshold !== undefined && application.final_score != null) {
+      return application.final_score >= stage1Threshold;
+    }
+    // Legacy status check
+    if (application.status === "accepted" || application.status === "round_2_eligible") {
+      return true;
+    }
+    return false;
+  })();
+
+  // If approved and currently in Stage 1 or resume screening, promote to Stage 2
+  if (isApproved) {
+    if (!explicitStage || explicitStage === "resume_screening" || explicitStage === "application_submitted") {
+      return "test_project";
+    }
+  }
+
   if (explicitStage) return explicitStage;
 
   const status = application.status;
@@ -396,7 +427,7 @@ export default function AdminPanel({
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
     let result = applications.filter((app) => {
-      const appStage = getVettingStage(app);
+      const appStage = getVettingStage(app, stage1Threshold);
       const appDecision = getDecisionStatus(app);
 
       const matchesStage = stageFilter === "all" || appStage === stageFilter;
@@ -442,7 +473,7 @@ export default function AdminPanel({
     }
 
     return result;
-  }, [applications, stageFilter, decisionFilter, universityFilter, searchTerm, scoreFilter, scoreSort]);
+  }, [applications, stageFilter, decisionFilter, universityFilter, searchTerm, scoreFilter, scoreSort, stage1Threshold]);
 
   const visibleApplicantEmails = useMemo(
     () =>
@@ -540,7 +571,7 @@ export default function AdminPanel({
       } else if (decisionBucket === "rejected") {
         stage = "rejected";
       } else {
-        stage = getVettingStage(app);
+        stage = getVettingStage(app, stage1Threshold);
       }
 
       stageSnapshot[stage] += 1;
@@ -712,12 +743,13 @@ export default function AdminPanel({
         if (!targetSet.has(app.email)) return app;
         const isReject = decisionStatus === "rejected";
         const oldStage = app.currentStage || 1;
+        const isCurrentlyRejected = app.status === "rejected";
         const newStatus = isReject
           ? "rejected"
-          : oldStage < 2
+          : (oldStage < 2 || isCurrentlyRejected)
             ? "round_2_eligible"
             : "accepted";
-        const newStage = isReject ? 3 : oldStage < 2 ? 2 : 3;
+        const newStage = isReject ? 3 : (oldStage < 2 || isCurrentlyRejected) ? 2 : 3;
 
         return {
           ...app,
@@ -725,7 +757,7 @@ export default function AdminPanel({
           currentStage: newStage,
           decisionStatus,
           decisionSource: "admin_override",
-          current_stage: decisionStatus,
+          current_stage: isReject ? "resume_screening" : "test_project",
           stage_status: decisionStatus === "accepted" ? "accepted" : "rejected",
           decision_status: decisionStatus,
           decision_source: "admin_override",
@@ -1095,7 +1127,17 @@ export default function AdminPanel({
                     {/* Floating filter panel */}
                     {showFilterPanel && (
                       <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
-                        <p className="mb-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Filters</p>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Filters</p>
+                          <button
+                            type="button"
+                            onClick={() => setShowFilterPanel(false)}
+                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                            aria-label="Close filters"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
                         <div className="flex flex-col gap-2.5">
 
                           {/* Stage */}
@@ -1110,7 +1152,6 @@ export default function AdminPanel({
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="all">All Stages</SelectItem>
-                                <SelectItem value="application_submitted">Application Submitted</SelectItem>
                                 <SelectItem value="resume_screening">Resume Screening</SelectItem>
                                 <SelectItem value="test_project">Test Project</SelectItem>
                               </SelectContent>
@@ -1340,7 +1381,14 @@ export default function AdminPanel({
                                 className="h-3.5 w-3.5 rounded border border-gray-300 bg-white text-blue-600 focus:ring-blue-500"
                               />
                             </td>
-                            <td className="py-2 pr-3">{app.name || "N/A"}</td>
+                            <td className="py-2 pr-3">
+                              <a
+                                href={`/admin/applications/${encodeURIComponent(app.email)}`}
+                                className="text-gray-800 hover:text-black hover:underline transition-colors cursor-pointer"
+                              >
+                                {app.name || "N/A"}
+                              </a>
+                            </td>
                             <td className="py-2 pr-3">{app.college || "N/A"}</td>
                             <td className="py-2 pr-3">{formatRole(app.category)}</td>
                             <td className="py-2 pr-3">
@@ -1349,7 +1397,7 @@ export default function AdminPanel({
                             {/* Status — vetting stage in the pipeline */}
                             <td className="py-2 pr-3">
                               {(() => {
-                                const stage = getVettingStage(app);
+                                const stage = getVettingStage(app, stage1Threshold);
                                 const stageLabels: Record<string, { label: string; cls: string }> = {
                                   application_submitted: { label: "Submitted", cls: "bg-gray-100 text-gray-700" },
                                   resume_screening: { label: "Stage 1", cls: "bg-blue-50 text-blue-700" },

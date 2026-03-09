@@ -97,14 +97,16 @@ export default async function handler(
   const updatePromises = (existingApps || []).map((app) => {
     const isReject = normalizedDecisionStatus === "rejected";
     const oldStage = app.currentStage || 1;
-    // Approving someone in stage 1 -> moves them to stage 2 (round_2_eligible).
-    // Approving someone in stage >= 2 -> moves them to stage 3 (final accepted).
+    const isCurrentlyRejected = app.status === "rejected";
+
+    // Approving someone in stage 1 or someone who was rejected -> moves them to stage 2 (round_2_eligible).
+    // Approving someone in stage >= 2 (and not rejected) -> moves them to stage 3 (final accepted).
     const newStatus = isReject
       ? "rejected"
-      : oldStage < 2
+      : (oldStage < 2 || isCurrentlyRejected)
         ? "round_2_eligible"
         : "accepted";
-    const newStage = isReject ? 3 : oldStage < 2 ? 2 : 3;
+    const newStage = isReject ? 3 : (oldStage < 2 || isCurrentlyRejected) ? 2 : 3;
 
     const baseUpdatePayload: Record<string, unknown> = {
       currentStage: newStage,
@@ -116,7 +118,7 @@ export default async function handler(
       decisionStatus: normalizedDecisionStatus,
       decisionSource: "admin_override",
       algorithmDecision: normalizedDecisionStatus,
-      current_stage: normalizedDecisionStatus,
+      current_stage: isReject ? "resume_screening" : "test_project",
       stage_status: normalizedDecisionStatus === "accepted" ? "accepted" : "rejected",
       decision_status: normalizedDecisionStatus,
       decision_source: "admin_override",

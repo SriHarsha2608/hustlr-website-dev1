@@ -83,6 +83,7 @@ export default function AlgorithmConfigPanel({
           Authorization: `Bearer ${jwtToken}`,
         },
         body: JSON.stringify({
+          threshold: config.threshold,
           factors: config.factors.map((factor) => ({
             key: factor.key,
             weight: Math.round(Number(factor.weight)),
@@ -94,7 +95,7 @@ export default function AlgorithmConfigPanel({
         throw new Error(json.error || "Failed to update algorithm config");
       }
       setConfig(json.config || config);
-      toast.success("Scoring weights updated. Re-score applicants to apply.");
+      toast.success("Scoring config updated. Re-score applicants to apply weight changes.");
       if (onThresholdChange && typeof json.config?.threshold === "number") {
         onThresholdChange(json.config.threshold);
       }
@@ -125,6 +126,43 @@ export default function AlgorithmConfigPanel({
         <p className="text-sm text-[#747474]">Loading scoring config...</p>
       ) : (
         <div className="space-y-3">
+          {/* Threshold input */}
+          <div className="grid gap-2 rounded-md border border-[#dfdfdf] bg-white p-3 sm:grid-cols-[1fr_120px]">
+            <div>
+              <p className="text-sm font-medium text-[#1f1f1f]">
+                Pass Threshold
+              </p>
+              <p className="text-xs text-[#757575]">
+                Minimum score (0–100%) an applicant needs to pass Stage 1
+              </p>
+            </div>
+            <div>
+              <p className="mb-1 text-[11px] uppercase tracking-[0.04em] text-[#666]">
+                Threshold %
+              </p>
+              <Input
+                type="number"
+                step="1"
+                min={0}
+                max={100}
+                value={config.threshold}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setConfig((prev) => ({
+                    ...prev,
+                    threshold: Number.isFinite(val)
+                      ? Math.max(0, Math.min(100, Math.round(val)))
+                      : 0,
+                  }));
+                }}
+                className="h-9 bg-white text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-[#e5e5e5]" />
+
           {config.factors.map((factor) => (
             <div
               key={factor.key}

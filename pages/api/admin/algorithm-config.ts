@@ -58,7 +58,17 @@ export default async function handler(
       return res.status(500).json({ success: false, error: error.message });
     }
 
-    const factors: ScoringFactor[] = (data || []).map((row) => ({
+    // Extract threshold row if present, otherwise use default
+    let threshold = DEFAULT_SCORING_CONFIG.threshold;
+    const factorRows = (data || []).filter((row) => {
+      if (row.category === "__threshold__") {
+        threshold = Number(row.weight);
+        return false;
+      }
+      return true;
+    });
+
+    const factors: ScoringFactor[] = factorRows.map((row) => ({
       key: row.category,
       label: FACTOR_META[row.category]?.label || row.category,
       weight: Number(row.weight),
@@ -75,7 +85,7 @@ export default async function handler(
       success: true,
       source: "database",
       config: {
-        threshold: DEFAULT_SCORING_CONFIG.threshold,
+        threshold,
         factors,
         totalWeight,
       },
@@ -84,7 +94,7 @@ export default async function handler(
 
   // ─── POST: write weights to scoring_config table ───
   if (req.method === "POST") {
-    const { factors } = req.body;
+    const { factors, threshold } = req.body;
 
     if (!Array.isArray(factors) || factors.length === 0) {
       return res.status(400).json({
@@ -93,7 +103,18 @@ export default async function handler(
       });
     }
 
-    // Validate
+    // Validate threshold if provided
+    if (threshold !== undefined) {
+      const t = Number(threshold);
+      if (!Number.isFinite(t) || t < 0 || t > 100) {
+        return res.status(400).json({
+          success: false,
+          error: "Threshold must be between 0 and 100",
+        });
+      }
+    }
+
+    // Validate factors
     for (const f of factors) {
       if (!f.key || !FACTOR_META[f.key]) {
         return res.status(400).json({
@@ -125,6 +146,23 @@ export default async function handler(
       if (error) errors.push(`${f.key}: ${error.message}`);
     }
 
+    // Save threshold as a special row
+    if (threshold !== undefined) {
+      const thresholdValue = Math.round(Number(threshold));
+      const { error: upsertErr } = await supabaseAdmin
+        .from("scoring_config")
+        .upsert(
+          {
+            category: "__threshold__",
+            weight: thresholdValue,
+            enabled: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "category" }
+        );
+      if (upsertErr) errors.push(`threshold: ${upsertErr.message}`);
+    }
+
     if (errors.length > 0) {
       return res
         .status(500)
@@ -143,7 +181,17 @@ export default async function handler(
         .json({ success: false, error: fetchError.message });
     }
 
-    const updatedFactors: ScoringFactor[] = (data || []).map((row) => ({
+    // Extract threshold from response
+    let savedThreshold = DEFAULT_SCORING_CONFIG.threshold;
+    const factorRows = (data || []).filter((row) => {
+      if (row.category === "__threshold__") {
+        savedThreshold = Number(row.weight);
+        return false;
+      }
+      return true;
+    });
+
+    const updatedFactors: ScoringFactor[] = factorRows.map((row) => ({
       key: row.category,
       label: FACTOR_META[row.category]?.label || row.category,
       weight: Number(row.weight),
@@ -159,7 +207,7 @@ export default async function handler(
       success: true,
       source: "database",
       config: {
-        threshold: DEFAULT_SCORING_CONFIG.threshold,
+        threshold: savedThreshold,
         factors: updatedFactors,
         totalWeight,
       },
