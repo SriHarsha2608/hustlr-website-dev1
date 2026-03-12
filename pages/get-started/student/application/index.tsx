@@ -1,7 +1,7 @@
 import { verifyToken } from "@/src/lib/jwt";
 import { checkIfExists, getVettingProgress } from "@/src/lib/vettingUtils";
 import { GetServerSideProps } from "next";
-import cookie from "cookie";
+
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";

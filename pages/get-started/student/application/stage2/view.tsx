@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowRight, CodeSquare } from "lucide-react";
 import { GetServerSideProps } from "next";
 import { PortableTextBlock } from "sanity";
-import cookie from "cookie";
+
 import { verifyToken } from "@/src/lib/jwt";
 import { GetVettingProgressResponse } from "@/src/lib/schemas/formSchema";
 import { getVettingProgress } from "@/src/lib/vettingUtils";

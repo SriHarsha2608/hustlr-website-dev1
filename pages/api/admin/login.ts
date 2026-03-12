@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createAdminToken } from "@/src/lib/jwt";
 import { firebaseAdminAuth } from "@/src/lib/firebase-admin";
-import cookie from "cookie";
+import { serialize } from "cookie";
 
 const ADMIN_EMAIL = (
   process.env.ADMIN_EMAIL || "admin@hustlr.local"
@@ -12,7 +12,7 @@ function setAdminSessionCookie(res: NextApiResponse, email: string) {
   const token = createAdminToken(email);
   res.setHeader(
     "Set-Cookie",
-    cookie.serialize("session", token, {
+    serialize("session", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       path: "/",

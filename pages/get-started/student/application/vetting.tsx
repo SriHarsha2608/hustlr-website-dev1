@@ -1,5 +1,5 @@
 import { GetServerSideProps } from "next";
-import cookie from "cookie";
+
 import { verifyToken } from "@/src/lib/jwt";
 import { useEffect, useState } from "react";
 import { Progress } from "@/components/ui/progress";

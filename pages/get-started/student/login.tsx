@@ -38,12 +38,12 @@ const slideFadeVariants = {
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const cookie = require("cookie");
+  const { parse } = require("cookie");
   const { req } = context;
   const cookies = req.headers.cookie;
 
   if (cookies) {
-    const parsed = cookie.parse(cookies);
+    const parsed = parse(cookies);
     const token = parsed.session;
 
     if (token) {

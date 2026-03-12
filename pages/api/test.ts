@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createToken } from "@/src/lib/jwt";
-import cookie from "cookie";
+import { serialize } from "cookie";
 
 export default async function handler(
   req: NextApiRequest,
@@ -10,7 +10,7 @@ export default async function handler(
     const token = createToken("max910payne@gmail.com");
     res.setHeader(
       "Set-Cookie",
-      cookie.serialize("session", token, {
+      serialize("session", token, {
         httpOnly: true,
         secure: false,
         path: "/",

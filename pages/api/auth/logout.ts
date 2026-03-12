@@ -1,10 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import cookie from "cookie";
+import { serialize } from "cookie";
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader(
     "Set-Cookie",
-    cookie.serialize("session", "", {
+    serialize("session", "", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       path: "/",

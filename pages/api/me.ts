@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { verifyToken } from "@/src/lib/jwt";
-import cookie from "cookie";
+
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const cookies = req.cookies;

@@ -3,7 +3,7 @@ import { type EmailOtpType } from "@supabase/supabase-js";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/src/lib/supabase-admin";
 import { createToken } from "@/src/lib/jwt";
-import cookie from "cookie";
+import { serialize } from "cookie";
 
 function stringOrFirstString(item: string | string[] | undefined) {
   return Array.isArray(item) ? item[0] : item;
@@ -52,7 +52,7 @@ export default async function handler(
 
     res.setHeader(
       "Set-Cookie",
-      cookie.serialize("session", token, {
+      serialize("session", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         path: "/",
