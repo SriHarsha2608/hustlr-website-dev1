@@ -46,18 +46,18 @@ export function CollegeInput({ form }: { form: FormFieldProp }) {
     const controller = new AbortController();
     const timeout = setTimeout(() => {
       setLoading(true);
-      fetch(
-        `https://universities.hipolabs.com/search?name=${encodeURIComponent(search)}&country=india`,
-        { signal: controller.signal }
-      )
+      fetch(`/api/colleges/search?q=${encodeURIComponent(search)}`, {
+        signal: controller.signal,
+      })
         .then((res) => res.json())
         .then((data) => {
           setColleges(
-            Array.isArray(data)
-              ? data.map((college: any) => ({
-                  label: college.name,
-                  value: college.name,
+            Array.isArray(data?.colleges)
+              ? data.colleges.map((college: any) => ({
+                  label: String(college?.label || college?.value || ""),
+                  value: String(college?.value || college?.label || ""),
                 }))
+                  .filter((college: { label: string; value: string }) => college.value.length > 0)
               : []
           );
         })
