@@ -1,14 +1,14 @@
 /**
- * Research Scorer — 20% or 5% Weight (Dynamic), 10 Raw Points
+ * Research Scorer - 20% or 5% Weight (Dynamic), 10 Raw Points
  *
- * Paper rank → points:
- *   A* (or 2+ A papers) → 10
- *   A                   → 8
- *   B*                  → 7
- *   B                   → 6
- *   C / Unranked         → 4 (workshop-level)
- *   Researcher (yes but no papers) → 2
- *   No research          → 0
+ * Paper rank -> points:
+ *   A* (or 2+ A papers) -> 10
+ *   A                   -> 8
+ *   B*                  -> 7
+ *   B                   -> 6
+ *   C / Unranked        -> 4 (workshop-level)
+ *   Researcher (yes but no papers) -> 2
+ *   No research         -> 0
  *
  * Weight is 20% if research field matches student's category, 5% otherwise.
  * The engine orchestrator handles the dynamic weight; this scorer just scores.
@@ -58,6 +58,30 @@ const CATEGORY_RESEARCH_KEYWORDS: Record<string, string[]> = {
   ],
 };
 
+const CATEGORY_ALIASES: Record<string, string> = {
+  "full stack developer": "Full Stack Developer",
+  "frontend developer": "Frontend Developer",
+  "backend developer": "Backend Developer",
+  "mobile app developer": "Mobile App Developer",
+  "mobile developer": "Mobile App Developer",
+  "ai ml developer": "AI ML Developer",
+  "ai/ml developer": "AI ML Developer",
+  "web developer": "Full Stack Developer",
+};
+
+function resolveCategory(category: string): string {
+  const normalizedCategory = String(category || "").trim().toLowerCase();
+  if (!normalizedCategory) return "";
+
+  const alias = CATEGORY_ALIASES[normalizedCategory];
+  if (alias) return alias;
+
+  const direct = Object.keys(CATEGORY_RESEARCH_KEYWORDS).find(
+    (key) => key.toLowerCase() === normalizedCategory
+  );
+  return direct || "";
+}
+
 /**
  * Check if research papers' titles/venues match the student's category.
  */
@@ -65,10 +89,11 @@ export function isResearchFieldMatch(
   category: string,
   papers: { title: string; venue: string }[]
 ): boolean {
-  // Case-insensitive category lookup (DB stores lowercase)
-  const keywords = Object.entries(CATEGORY_RESEARCH_KEYWORDS).find(
-    ([key]) => key.toLowerCase() === category.toLowerCase()
-  )?.[1];
+  const canonicalCategory = resolveCategory(category);
+  const keywords = canonicalCategory
+    ? CATEGORY_RESEARCH_KEYWORDS[canonicalCategory]
+    : undefined;
+
   if (!keywords || papers.length === 0) return false;
 
   for (const paper of papers) {
@@ -99,7 +124,7 @@ export function scoreResearch(
 
   const papers = data.researchPapers || [];
 
-  // Said "Yes" but no papers listed → researcher credit
+  // Said "Yes" but no papers listed -> researcher credit
   if (papers.length === 0) {
     const normalized = 2 / MAX_RAW;
     return {
@@ -109,7 +134,7 @@ export function scoreResearch(
       normalized,
       weight,
       weighted: normalized * weight,
-      reasoning: "Active researcher, no published papers listed → 2/10",
+      reasoning: "Active researcher, no published papers listed -> 2/10",
     };
   }
 
@@ -127,10 +152,10 @@ export function scoreResearch(
     }
   }
 
-  // 2+ A papers → 10 pts (same as A*)
+  // 2+ A papers ? 10 pts (same as A*)
   if (aPaperCount >= 2 && bestPoints < 10) {
     bestPoints = 10;
-    bestRank = `2× A papers`;
+    bestRank = `2Ã— A papers`;
   }
 
   const normalized = bestPoints / MAX_RAW;
@@ -142,6 +167,6 @@ export function scoreResearch(
     normalized,
     weight,
     weighted: normalized * weight,
-    reasoning: `Best: ${bestRank} → ${bestPoints}/${MAX_RAW}. ${papers.length} paper(s) total.`,
+    reasoning: `Best: ${bestRank} ? ${bestPoints}/${MAX_RAW}. ${papers.length} paper(s) total.`,
   };
 }

@@ -22,7 +22,11 @@ export const formSchema = z.object({
       { message: "You must be at least 18 years old" }
     ),
   phone: z.string().regex(/^\+91\d{10}$/, "Invalid phone number"),
-  college: z.string().min(1, "College is required"),
+  college: z
+    .string()
+    .min(3, "College is required")
+    .max(80, "College name must be at most 80 characters")
+    .regex(/^[A-Za-z0-9 .,&()'\-/]+$/, "College name contains invalid characters"),
   collegeEmail: z.string().email("Invalid email"),
   degree: z.string().min(1, "Degree is required"),
   branch: z.string().min(1, "Branch is required"),
@@ -370,3 +374,4 @@ export type Stage2ProjectSubmit = {
 export type GetVettingProgressResponse =
   | { success: true; data: SupabaseVettingData }
   | { success: false };
+

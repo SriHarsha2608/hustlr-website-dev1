@@ -7,29 +7,24 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Bot, Layers, Smartphone, AppWindow, Server } from "lucide-react";
+import { Bot, Globe, Smartphone } from "lucide-react";
 import { FormFieldProp } from "../../lib/schemas/formSchema";
 
 const categories = [
   {
-    name: "AI ML Developer",
-    svg: <Bot className="w-8 h-8 text-white mb-3" strokeWidth={1.5} />,
+    label: "AI/ML Developer",
+    value: "ai/ml developer",
+    icon: <Bot className="w-8 h-8 text-white mb-3" strokeWidth={1.5} />,
   },
   {
-    name: "Full Stack Developer",
-    svg: <Layers className="w-8 h-8 text-white mb-3" strokeWidth={1.5} />,
+    label: "Web Developer",
+    value: "web developer",
+    icon: <Globe className="w-8 h-8 text-white mb-3" strokeWidth={1.5} />,
   },
   {
-    name: "Mobile App Developer",
-    svg: <Smartphone className="w-8 h-8 text-white mb-3" strokeWidth={1.5} />,
-  },
-  {
-    name: "Frontend Developer",
-    svg: <AppWindow className="w-8 h-8 text-white mb-3" strokeWidth={1.5} />,
-  },
-  {
-    name: "Backend Developer",
-    svg: <Server className="w-8 h-8 text-white mb-3" strokeWidth={1.5} />,
+    label: "Mobile App Developer",
+    value: "mobile app developer",
+    icon: <Smartphone className="w-8 h-8 text-white mb-3" strokeWidth={1.5} />,
   },
 ];
 
@@ -49,31 +44,24 @@ export default function CategoryRadio({ form }: { form: FormFieldProp }) {
               onValueChange={field.onChange}
               className="flex flex-wrap justify-center gap-4"
             >
-              {categories.map(({ name, svg }) => {
-                const value = name.toLowerCase(); // ensure consistent casing
-                return (
-                  <FormItem key={value} className="w-full md:w-[30%]">
-                    <FormLabel htmlFor={value} className="cursor-pointer h-full block">
-                      <div className={`flex flex-col items-center justify-center p-8 bg-accentBlue rounded-2xl hover:bg-opacity-90 transition-colors h-full text-center ${field.value === value ? "border-2 border-black" : "border-2 border-transparent"}`}>
-                        <RadioGroupItem
-                          value={value}
-                          id={value}
-                          className="sr-only"
-                        />
-                        {svg}
-                        <span className="text-xl font-semibold text-white">
-                          {name}
-                        </span>
-                      </div>
-                    </FormLabel>
-                  </FormItem>
-                );
-              })}
+              {categories.map(({ label, value, icon }) => (
+                <FormItem key={value} className="w-full md:w-[30%]">
+                  <FormLabel htmlFor={value} className="cursor-pointer h-full block">
+                    <div
+                      className={`flex flex-col items-center justify-center p-8 bg-accentBlue rounded-2xl hover:bg-opacity-90 transition-colors h-full text-center ${field.value === value ? "border-2 border-black" : "border-2 border-transparent"}`}
+                    >
+                      <RadioGroupItem value={value} id={value} className="sr-only" />
+                      {icon}
+                      <span className="text-xl font-semibold text-white">{label}</span>
+                    </div>
+                  </FormLabel>
+                </FormItem>
+              ))}
             </RadioGroup>
           </FormControl>
           <FormDescription className="text-base text-center font-medium mt-4">
             {field.value
-              ? `Selected: ${categories.find(c => c.name.toLowerCase() === field.value)?.name || field.value}`
+              ? `Selected: ${categories.find((c) => c.value === field.value)?.label || field.value}`
               : "Please select a category"}
           </FormDescription>
           <FormMessage />

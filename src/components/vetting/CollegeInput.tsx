@@ -1,6 +1,5 @@
 "use client";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { FieldValues, useForm, UseFormReturn } from "react-hook-form";
 
 import { cn } from "@/src/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import {
-  Form,
   FormControl,
   FormDescription,
   FormField,
@@ -26,8 +24,19 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FormFieldProp } from "../../lib/schemas/formSchema";
+
+const COLLEGE_MAX_LENGTH = 80;
+
+function normalizeCollegeInput(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function isValidCollegeManualInput(value: string): boolean {
+  // Allow common institute name characters while blocking unusual input.
+  return /^[A-Za-z0-9 .,&()'\-/]+$/.test(value);
+}
 
 export function CollegeInput({ form }: { form: FormFieldProp }) {
   const [open, setOpen] = useState(false);
@@ -37,31 +46,50 @@ export function CollegeInput({ form }: { form: FormFieldProp }) {
   );
   const [loading, setLoading] = useState(false);
 
+  const normalizedSearch = useMemo(() => normalizeCollegeInput(search), [search]);
+  const hasExactMatch = useMemo(
+    () =>
+      colleges.some(
+        (c) => c.value.toLowerCase() === normalizedSearch.toLowerCase()
+      ),
+    [colleges, normalizedSearch]
+  );
+
+  const canUseManual =
+    normalizedSearch.length >= 3 &&
+    normalizedSearch.length <= COLLEGE_MAX_LENGTH &&
+    isValidCollegeManualInput(normalizedSearch) &&
+    !hasExactMatch;
+
   // Fetch colleges from API when search changes
   useEffect(() => {
-    if (!search || search.length < 3) {
+    if (!normalizedSearch || normalizedSearch.length < 3) {
       setColleges([]);
       return;
     }
     const controller = new AbortController();
     const timeout = setTimeout(() => {
       setLoading(true);
-      fetch(`/api/colleges/search?q=${encodeURIComponent(search)}`, {
+      fetch(`/api/colleges/search?q=${encodeURIComponent(normalizedSearch)}`, {
         signal: controller.signal,
       })
         .then((res) => res.json())
         .then((data) => {
           setColleges(
             Array.isArray(data?.colleges)
-              ? data.colleges.map((college: any) => ({
-                  label: String(college?.label || college?.value || ""),
-                  value: String(college?.value || college?.label || ""),
-                }))
-                  .filter((college: { label: string; value: string }) => college.value.length > 0)
+              ? data.colleges
+                  .map((college: { label?: string; value?: string }) => ({
+                    label: String(college?.label || college?.value || ""),
+                    value: String(college?.value || college?.label || ""),
+                  }))
+                  .filter(
+                    (college: { label: string; value: string }) =>
+                      college.value.length > 0
+                  )
               : []
           );
         })
-        .catch((err) => {
+        .catch((err: { name?: string }) => {
           if (err?.name !== "AbortError") {
             console.error("College lookup failed", err);
             setColleges([]);
@@ -74,7 +102,7 @@ export function CollegeInput({ form }: { form: FormFieldProp }) {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [search]);
+  }, [normalizedSearch]);
 
   return (
     <FormField
@@ -95,34 +123,55 @@ export function CollegeInput({ form }: { form: FormFieldProp }) {
                     "bg-slate-50"
                   )}
                 >
-                  {field.value || "Select college/university"}
+                  {field.value || "Select or type your college/university"}
                   <ChevronsUpDown className="opacity-50" />
                 </Button>
               </FormControl>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0">
+            <PopoverContent className="w-[340px] p-0">
               <Command className="font-sans shadow-xl shadow-black/20 border-2 border-black/15">
                 <CommandInput
-                  placeholder="Search college..."
+                  placeholder="Type college name..."
                   className="h-9"
                   value={search}
-                  onValueChange={setSearch}
+                  onValueChange={(value) => {
+                    setSearch(value.slice(0, COLLEGE_MAX_LENGTH));
+                  }}
                 />
                 <CommandList>
                   <CommandEmpty>
                     {loading
                       ? "Searching..."
-                      : search.length < 3
+                      : normalizedSearch.length < 3
                         ? "Type at least 3 letters"
-                        : "No college found."}
+                        : "No college found. You can add it manually below."}
                   </CommandEmpty>
                   <CommandGroup>
+                    {canUseManual && (
+                      <CommandItem
+                        value={`manual:${normalizedSearch}`}
+                        onSelect={() => {
+                          form.setValue("college", normalizedSearch, {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                          });
+                          setSearch(normalizedSearch);
+                          setOpen(false);
+                        }}
+                      >
+                        Use "{normalizedSearch}" (manual entry)
+                      </CommandItem>
+                    )}
                     {colleges.map((college) => (
                       <CommandItem
                         value={college.label}
                         key={college.value}
                         onSelect={() => {
-                          form.setValue("college", college.value);
+                          form.setValue("college", college.value, {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                          });
+                          setSearch(college.value);
                           setOpen(false);
                         }}
                       >
@@ -143,7 +192,7 @@ export function CollegeInput({ form }: { form: FormFieldProp }) {
             </PopoverContent>
           </Popover>
           <FormDescription>
-            Please select your college or university.
+            Type to get suggestions. If your college is not listed, you can add it manually (max {COLLEGE_MAX_LENGTH} characters).
           </FormDescription>
           <FormMessage />
         </FormItem>
