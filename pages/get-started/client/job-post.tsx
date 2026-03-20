@@ -37,6 +37,7 @@ export default function ClientJobPostPage() {
   const [description, setDescription] = useState("");
   const [timelineEstimate, setTimelineEstimate] = useState("");
   const [deliverables, setDeliverables] = useState("");
+  const [budget, setBudget] = useState(20000);
   const [skillInput, setSkillInput] = useState("");
   const [skillLevel, setSkillLevel] = useState<SkillLevel | "">("");
   const [skills, setSkills] = useState<SkillItem[]>([]);
@@ -137,6 +138,7 @@ export default function ClientJobPostPage() {
     .filter(Boolean);
 
   const responsibilityItems = deliverableItems.slice(0, 3);
+  const formattedBudget = new Intl.NumberFormat("en-IN").format(budget);
 
   return (
     <>
@@ -175,7 +177,7 @@ export default function ClientJobPostPage() {
 
                 <div className="mt-8 grid grid-cols-2 gap-6 text-center">
                   <div>
-                    <p className="text-6xl leading-none">₹15,000</p>
+                    <p className="text-6xl leading-none">₹{formattedBudget}</p>
                     <p className="text-5xl leading-tight">fixed price</p>
                   </div>
                   <div>
@@ -243,7 +245,8 @@ export default function ClientJobPostPage() {
                   type="button"
                   onClick={() => {
                     setView("form");
-                    setStep(2);
+                    setStep(1);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
                   className="h-10 rounded-lg bg-[#a9a9a9] text-sm font-semibold text-white hover:bg-[#969696]"
                 >
@@ -427,11 +430,69 @@ export default function ClientJobPostPage() {
                       />
                     </div>
 
+                    <div className="space-y-3 pt-2">
+                      <label className="block text-2xl font-semibold text-black">Budget</label>
+                      <p className="text-[11px] text-[#7e8f4f]">
+                        Students will see this range before deciding to work on the project. Please ensure the budget is a fair compensation.
+                      </p>
+
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
+                        <div className="pt-2">
+                          <div className="relative h-7">
+                            <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 bg-black/80" />
+                            <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-between px-[1px]">
+                              {Array.from({ length: 13 }).map((_, idx) => (
+                                <span
+                                  key={idx}
+                                  className={`block w-[2px] ${idx % 3 === 0 ? "h-4 bg-black/85" : "h-2.5 bg-black/75"}`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          <input
+                            type="range"
+                            min={0}
+                            max={80000}
+                            step={500}
+                            value={budget}
+                            onChange={(e) => setBudget(Number(e.target.value))}
+                            className="mt-1 h-2 w-full cursor-pointer accent-black"
+                          />
+
+                          <div className="mt-1 flex items-center justify-between text-[11px] font-sans text-black/70">
+                            <span>0</span>
+                            <span>Above 80,000</span>
+                          </div>
+
+                          <div className="mx-auto mt-2 w-[130px] rounded-[8px] bg-[#e2e2e2] py-1 text-center font-sans text-xl text-black/85">
+                            ₹{formattedBudget}
+                          </div>
+                        </div>
+
+                        <aside className="relative rounded-tr-[6px] rounded-br-[6px] rounded-bl-[6px] bg-[#b9cc84] px-4 py-3 font-sans text-[12px] leading-[1.2] text-black/80 before:absolute before:-left-[20px] before:top-0 before:h-[20px] before:w-[20px] before:translate-x-px before:bg-[#b9cc84] before:[clip-path:polygon(100%_0,100%_100%,0_0)] before:content-['']">
+                          <p>
+                            <strong>Remember</strong> that this amount must be deposited before your project begins with a student. This is to prevent fraudulent and unfair behaviours from the client side. Your payment will be held with us via escrow until project completion after which the money will be transferred to the student.
+                          </p>
+                          <p className="mt-2">
+                            In case of any dissatisfaction with a student&apos;s performance, your money will be fully refunded to you by us.
+                          </p>
+                        </aside>
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-3 pt-8">
                       <Button
                         type="button"
                         variant="ghost"
-                        onClick={() => setStep(1)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setView("form");
+                          setStep(1);
+                          setIsSubmitting(false);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
                         className="h-10 rounded-lg border border-black/20 px-6 text-sm text-black hover:bg-black/5"
                       >
                         Back
