@@ -294,6 +294,7 @@ const BUDGET_MIN = 0;
 const BUDGET_MAX = 80000;
 const BUDGET_STEP = 500;
 const PREVIEW_DELAY_MS = 1800;
+const PROJECT_SUBMITTED_REDIRECT_DELAY_MS = 2500;
 const MAX_SKILLS = 20;
 const CLIENT_PROFILE_STORAGE_KEY = "hustlr.client.profile";
 
@@ -321,7 +322,7 @@ const DEFAULT_CLIENT_PROFILE: ClientProfile = {
 
 export default function ClientJobPostPage() {
   const router = useRouter();
-  const [view, setView] = useState<"form" | "loading" | "preview">("form");
+  const [view, setView] = useState<"form" | "loading" | "preview" | "submitted">("form");
   const [step, setStep] = useState<1 | 2>(1);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -339,11 +340,15 @@ export default function ClientJobPostPage() {
   const [clientProfile, setClientProfile] = useState<ClientProfile>(DEFAULT_CLIENT_PROFILE);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const previewTimerRef = useRef<number | null>(null);
+  const submittedTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (previewTimerRef.current !== null) {
         window.clearTimeout(previewTimerRef.current);
+      }
+      if (submittedTimerRef.current !== null) {
+        window.clearTimeout(submittedTimerRef.current);
       }
     };
   }, []);
@@ -462,6 +467,20 @@ export default function ClientJobPostPage() {
     }
 
     setSkillLevel(value as SkillLevel);
+  }
+
+  function onPostProject() {
+    setView("submitted");
+    scrollToTop();
+
+    if (submittedTimerRef.current !== null) {
+      window.clearTimeout(submittedTimerRef.current);
+    }
+
+    submittedTimerRef.current = window.setTimeout(() => {
+      void router.push("/admin");
+      submittedTimerRef.current = null;
+    }, PROJECT_SUBMITTED_REDIRECT_DELAY_MS);
   }
 
   function validateStepOne() {
@@ -686,9 +705,7 @@ export default function ClientJobPostPage() {
               <aside className="flex h-fit flex-col gap-3 lg:pt-1">
                 <Button
                   type="button"
-                  onClick={() => {
-                    void router.push("/get-started/client/project-submitted");
-                  }}
+                  onClick={onPostProject}
                   className="h-10 rounded-lg bg-[#a9c165] text-sm font-semibold text-white hover:bg-[#95af57]"
                 >
                   Post Project
@@ -704,6 +721,37 @@ export default function ClientJobPostPage() {
                 </Button>
               </aside>
             </div>
+          </section>
+        )}
+
+        {view === "submitted" && (
+          <section className="mx-auto flex min-h-[72vh] w-full max-w-[1200px] flex-col items-center justify-center px-6 text-center">
+            <div className="flex items-center gap-3">
+              <h1
+                className="text-4xl tracking-tight text-black/90 sm:text-5xl"
+                style={{
+                  fontFamily: 'var(--font-the-seasons), "FONTSPRING DEMO - The Seasons", serif',
+                  fontWeight: 700,
+                  fontStyle: "normal",
+                }}
+              >
+                Project Submitted
+              </h1>
+              <img
+                src="/images/celebration.png"
+                alt="Celebration"
+                className="h-12 w-12 object-contain mix-blend-multiply sm:h-14 sm:w-14"
+              />
+            </div>
+
+            <div className="mt-10 flex flex-col items-center gap-2">
+              <Loader className="h-12 w-12 animate-spin text-black/70" />
+              <p className="text-[11px] font-semibold tracking-wide text-black/60">LOADING...</p>
+            </div>
+
+            <p className="mt-9 text-[1.35rem] font-semibold leading-tight text-black/80 sm:text-[1.55rem]">
+              Redirecting you to your dashboard to start finding students..
+            </p>
           </section>
         )}
 
