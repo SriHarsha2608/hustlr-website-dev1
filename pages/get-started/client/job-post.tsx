@@ -332,6 +332,7 @@ export default function ClientJobPostPage() {
   const [selectedSkill, setSelectedSkill] = useState("");
   const [skillSearchQuery, setSkillSearchQuery] = useState("");
   const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false);
+  const [isRequirementDropdownOpen, setIsRequirementDropdownOpen] = useState(false);
   const [skillLevel, setSkillLevel] = useState<SkillLevel | "">("");
   const [skills, setSkills] = useState<SkillItem[]>([]);
   const [previewTab, setPreviewTab] = useState<"details" | "client">("details");
@@ -432,6 +433,35 @@ export default function ClientJobPostPage() {
 
   function removeSkill(index: number) {
     setSkills((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function onSkillDropdownOpenChange(nextOpen: boolean) {
+    if (nextOpen && !category) {
+      toast.error("Select a project category first.");
+      setIsSkillDropdownOpen(false);
+      return;
+    }
+
+    setIsSkillDropdownOpen(nextOpen);
+  }
+
+  function onRequirementDropdownOpenChange(nextOpen: boolean) {
+    if (nextOpen && !selectedSkill) {
+      toast.error("Select the skill first.");
+      setIsRequirementDropdownOpen(false);
+      return;
+    }
+
+    setIsRequirementDropdownOpen(nextOpen);
+  }
+
+  function onRequirementLevelChange(value: string) {
+    if (!selectedSkill) {
+      toast.error("Select the skill first.");
+      return;
+    }
+
+    setSkillLevel(value as SkillLevel);
   }
 
   function validateStepOne() {
@@ -779,7 +809,7 @@ export default function ClientJobPostPage() {
                           >
                             <Plus className="h-4 w-4" />
                           </Button>
-                          <Popover open={isSkillDropdownOpen} onOpenChange={setIsSkillDropdownOpen}>
+                          <Popover open={isSkillDropdownOpen} onOpenChange={onSkillDropdownOpenChange}>
                             <PopoverTrigger asChild>
                               <Button
                                 type="button"
@@ -787,7 +817,6 @@ export default function ClientJobPostPage() {
                                 role="combobox"
                                 aria-expanded={isSkillDropdownOpen}
                                 className="h-9 w-full justify-between rounded-md border border-black/20 bg-[#e9e9e9] text-sm font-sans text-black hover:bg-[#e1e1e1]"
-                                disabled={!category}
                               >
                                 <span className="truncate text-left">
                                   {selectedSkill || (category ? "Search and select skill" : "Select category first")}
@@ -829,8 +858,10 @@ export default function ClientJobPostPage() {
                         </div>
 
                         <Select
+                          open={isRequirementDropdownOpen}
+                          onOpenChange={onRequirementDropdownOpenChange}
                           value={skillLevel}
-                          onValueChange={(value) => setSkillLevel(value as SkillLevel)}
+                          onValueChange={onRequirementLevelChange}
                         >
                           <SelectTrigger className="h-9 w-full rounded-md border border-black/20 bg-[#e9e9e9] text-sm font-sans text-black sm:w-[190px]">
                             <SelectValue placeholder="Choose Requirement" />
