@@ -153,7 +153,7 @@ export default function ClientOnboardingPage() {
             </div>
 
             <p className="mt-16 text-[1.7rem] font-semibold leading-tight text-[#58b7ba] sm:text-[1.95rem]">
-              Youre Ready to Post Your First Project
+              You're Ready to Post Your First Project
             </p>
             <p className="mt-4 whitespace-nowrap text-[1.35rem] font-semibold leading-tight text-black/85 sm:text-[1.5rem]">
               You can now post a project and discover top student talent matched to your requirements.
@@ -204,7 +204,7 @@ export default function ClientOnboardingPage() {
 
       <main className="min-h-screen bg-[#f4f4f4] pt-16 md:pt-20">
         <section className="px-6 py-10 sm:px-10 md:px-14 lg:px-24">
-          <div className="w-full max-w-2xl font-sans text-black">
+          <div className="mx-auto w-full max-w-2xl font-ovo text-black">
             <h1 className="font-serif text-4xl font-normal tracking-tight text-black/90">
               Tell Us About Your Business
             </h1>
@@ -217,40 +217,40 @@ export default function ClientOnboardingPage() {
 
             <form onSubmit={onSubmit} className="mt-12 space-y-7">
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Company Name</label>
+                <label className="block text-sm font-semibold text-black">Company Name</label>
                 <Input
                   required
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  className="h-8 rounded-md border-black/10 bg-[#eaeaea] text-sm text-black placeholder:text-black/45"
+                  className="h-8 rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Company Website</label>
+                <label className="block text-sm font-semibold text-black">Company Website</label>
                 <Input
                   required
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
-                  className="h-8 rounded-md border-black/10 bg-[#eaeaea] text-sm text-black placeholder:text-black/45"
+                  className="h-8 rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Company LinkedIn</label>
+                <label className="block text-sm font-semibold text-black">Company LinkedIn</label>
                 <Input
                   required
                   value={linkedin}
                   onChange={(e) => setLinkedin(e.target.value)}
-                  className="h-8 rounded-md border-black/10 bg-[#eaeaea] text-sm text-black placeholder:text-black/45"
+                  className="h-8 rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Industry</label>
+                <label className="block text-sm font-semibold text-black">Industry</label>
                 <div className="flex flex-col gap-3 md:flex-row md:items-center">
                   <Select value={industry} onValueChange={setIndustry}>
-                    <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border-black/10 bg-[#eaeaea] text-sm text-black">
+                    <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black">
                       <SelectValue/>
                     </SelectTrigger>
                     <SelectContent>
@@ -265,10 +265,10 @@ export default function ClientOnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Company Size</label>
+                <label className="block text-sm font-semibold text-black">Company Size</label>
                 <div className="flex flex-col gap-3 md:flex-row md:items-center">
                   <Select value={companySize} onValueChange={setCompanySize}>
-                    <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border-black/10 bg-[#eaeaea] text-sm text-black">
+                    <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -283,9 +283,9 @@ export default function ClientOnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Country</label>
+                <label className="block text-sm font-semibold text-black">Country</label>
                 <Select value={country} onValueChange={setCountry}>
-                  <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border-black/10 bg-[#eaeaea] text-sm text-black">
+                  <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black">
                     <SelectValue/>
                   </SelectTrigger>
                   <SelectContent>
@@ -300,7 +300,7 @@ export default function ClientOnboardingPage() {
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <label className="block text-sm font-semibold">Company Description</label>
+                  <label className="block text-sm font-semibold text-black">Company Description</label>
                   <span className="text-xs text-black/55">Word limit: 50</span>
                 </div>
                 <Textarea
@@ -310,7 +310,7 @@ export default function ClientOnboardingPage() {
                   placeholder={`Briefly explain what your company does
 Ex: We are a fintech startup building tools that help small businesses manage payments.`}
                   rows={3}
-                  className="min-h-[84px] resize-none rounded-md border-black/10 bg-[#eaeaea] py-2 text-sm text-black placeholder:text-black/45"
+                  className="min-h-[84px] resize-none rounded-md border border-black/25 bg-slate-50 py-2 text-sm font-sans text-black"
                 />
               </div>
 

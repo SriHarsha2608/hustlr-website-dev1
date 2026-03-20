@@ -165,7 +165,7 @@ export default function ClientVerifyPage() {
       `Create Account captured for ${companyName.trim()}. We will notify you when client onboarding opens.`
     );
     setIsSubmitting(false);
-    router.push("get-started/student/login");
+    router.push("/get-started/student/login");
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
