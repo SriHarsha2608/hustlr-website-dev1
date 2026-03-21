@@ -2,7 +2,7 @@ import createClient from "@/src/lib/supabase/auth/api";
 import { type EmailOtpType } from "@supabase/supabase-js";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/src/lib/supabase-admin";
-import { createToken } from "@/src/lib/jwt";
+import { createToken, createClientToken } from "@/src/lib/jwt";
 import { serialize } from "cookie";
 
 function stringOrFirstString(item: string | string[] | undefined) {
@@ -55,6 +55,26 @@ export default async function handler(
     if (error || !data?.user) {
       console.error("Failed to fetch user after verification:", error);
       return res.redirect("/error");
+    }
+
+    // Detect role from Supabase user metadata — clients pass { data: { role: "client" } }
+    // in signUp options. The same email template is used for all users so we must
+    // determine the right token type and redirect here rather than in a separate endpoint.
+    const userRole = data.user.user_metadata?.role as string | undefined;
+
+    if (userRole === "client") {
+      const clientToken = createClientToken(data.user.email!);
+      res.setHeader(
+        "Set-Cookie",
+        serialize("session", clientToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: 7 * 24 * 60 * 60,
+          sameSite: "lax",
+        })
+      );
+      return res.redirect("/get-started/client/onboarding");
     }
 
     const token = createToken(data.user.email!);
