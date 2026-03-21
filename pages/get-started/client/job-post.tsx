@@ -1,4 +1,5 @@
 import Head from "next/head";
+import { motion } from "framer-motion";
 import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Nav from "@/src/components/Nav";
@@ -323,6 +324,41 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 
   return { props: { clientEmail } };
+};
+
+const HelperBox = () => {
+  const [show, setShow] = useState(false);
+  const [text, setText] = useState("");
+  const fullText = "Our AI Job Post Helper will optimize your job post for tone, grammar, and phrasing. Fill in the basic details and leave the rest to us!";
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setShow(true), 700);
+    return () => clearTimeout(t1);
+  }, []);
+
+  useEffect(() => {
+    if (show) {
+      let i = 0;
+      const t2 = setInterval(() => {
+        i++;
+        setText(fullText.slice(0, i));
+        if (i === fullText.length) clearInterval(t2);
+      }, 30);
+      return () => clearInterval(t2);
+    }
+  }, [show]);
+
+  return (
+    <motion.aside
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: show ? 1 : 0, scale: show ? 1 : 0.95 }}
+      transition={{ duration: 0.4 }}
+      className="relative h-fit w-full rounded-tr-[10px] rounded-br-[10px] rounded-bl-[10px] bg-[#b9cc84] px-8 py-6 font-sans text-[16px] font-medium leading-[1.24] text-[#5d742d] md:mt-8 md:w-[385px] md:justify-self-end before:absolute before:-left-[26px] before:top-0 before:h-[26px] before:w-[26px] before:translate-x-px before:bg-[#b9cc84] before:[clip-path:polygon(100%_0,100%_100%,0_0)] before:content-['']"
+    >
+      {text}
+      <span className={show && text.length < fullText.length ? "animate-pulse" : "hidden"}>|</span>
+    </motion.aside>
+  );
 };
 
 export default function ClientJobPostPage({ clientEmail }: { clientEmail: string }) {
@@ -948,9 +984,7 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
             </div>
 
             {step === 1 && (
-              <aside className="relative h-fit w-full rounded-tr-[10px] rounded-br-[10px] rounded-bl-[10px] bg-[#b9cc84] px-8 py-6 font-sans text-[16px] font-medium leading-[1.24] text-[#5d742d] md:mt-8 md:w-[385px] md:justify-self-end before:absolute before:-left-[26px] before:top-0 before:h-[26px] before:w-[26px] before:translate-x-px before:bg-[#b9cc84] before:[clip-path:polygon(100%_0,100%_100%,0_0)] before:content-['']">
-                Our AI Job Post Helper will optimize your job post for tone, grammar, and phrasing. Fill in the basic details and leave the rest to us!
-              </aside>
+              <HelperBox />
             )}
           </div>
         </section>
