@@ -176,7 +176,7 @@ export default function ClientVerifyPage() {
     const dialCode = selectedCode?.dialCode ?? "+91";
     const fullPhone = `${dialCode}${phone.trim()}`;
 
-    const { data, error } = await supabaseClient.auth.signUp({
+    const { error } = await supabaseClient.auth.signUp({
       email: email.trim(),
       password,
       options: {
@@ -194,23 +194,8 @@ export default function ClientVerifyPage() {
       return;
     }
 
-    // If Supabase returned a session immediately, email confirmation is disabled —
-    // exchange the token directly instead of waiting for an email that will never arrive.
-    if (data.session?.access_token) {
-      const res = await fetch("/api/client/auth/exchange", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ access_token: data.session.access_token }),
-      });
-      if (res.ok) {
-        void router.push("/get-started/client/onboarding");
-      } else {
-        toast.error("Account created but sign-in failed. Please sign in manually.");
-        setMode("signin");
-      }
-      return;
-    }
-
+    // Always show the email-sent screen regardless of whether Supabase auto-confirmed.
+    // If no email arrives the user clicks "Sign in instead" which handles both cases.
     setStep("emailSent");
   }
 
