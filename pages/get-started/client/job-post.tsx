@@ -383,7 +383,7 @@ export default function ClientJobPostPage() {
       }
 
       submittedTimerRef.current = window.setTimeout(() => {
-        void router.push("/admin");
+        void router.push("/");
         submittedTimerRef.current = null;
       }, PROJECT_SUBMITTED_REDIRECT_DELAY_MS);
     }
@@ -421,7 +421,7 @@ export default function ClientJobPostPage() {
     }
 
     if (skills.length >= MAX_SKILLS) {
-      toast.error("you can only add 20 skills for a project");
+      toast.error("You can only add 20 skills for a project.");
       return;
     }
 
@@ -608,12 +608,7 @@ export default function ClientJobPostPage() {
           <section className="mx-auto flex min-h-[72vh] w-full max-w-[1200px] flex-col items-center justify-center px-6 text-center">
             <div className="flex items-center gap-3">
               <h1
-                className="text-4xl tracking-tight text-black/90 sm:text-5xl"
-                style={{
-                  fontFamily: 'var(--font-the-seasons), "FONTSPRING DEMO - The Seasons", serif',
-                  fontWeight: 700,
-                  fontStyle: "normal",
-                }}
+                className="font-serif text-4xl font-bold tracking-tight text-black/90 sm:text-5xl"
               >
                 Project Submitted
               </h1>
@@ -630,7 +625,7 @@ export default function ClientJobPostPage() {
             </div>
 
             <p className="mt-9 text-[1.35rem] font-semibold leading-tight text-black/80 sm:text-[1.55rem]">
-              Redirecting you to your dashboard to start finding students..
+              Redirecting you to the homepage while we set up your dashboard..
             </p>
           </section>
         )}
