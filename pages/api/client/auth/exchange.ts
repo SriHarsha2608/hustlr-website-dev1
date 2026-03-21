@@ -19,6 +19,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: "Invalid token" });
     }
 
+    // Enforce email confirmation server-side regardless of Supabase dashboard setting
+    if (!data.user.email_confirmed_at) {
+      console.warn("[client/auth/exchange] unconfirmed email attempted exchange:", data.user.email);
+      return res.status(403).json({ error: "Email not confirmed" });
+    }
+
     const token = createClientToken(data.user.email);
 
     res.setHeader(

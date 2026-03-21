@@ -251,6 +251,9 @@ export default function ClientVerifyPage() {
     if (res.ok) {
       toast.success("Signed in successfully!");
       void router.push("/get-started/client/onboarding");
+    } else if (res.status === 403) {
+      toast.error("Please verify your email before signing in. Check your inbox.");
+      setStep("emailSent");
     } else {
       toast.error("Failed to complete sign in. Please try again.");
     }
