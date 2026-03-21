@@ -17,9 +17,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from("client_profiles")
       .select("*")
       .eq("email", email)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
+      console.error("[client/profile/get] db error:", error);
+      return res.status(500).json({ error: "Failed to fetch profile" });
+    }
+
+    if (!data) {
       return res.status(404).json({ profile: null });
     }
 

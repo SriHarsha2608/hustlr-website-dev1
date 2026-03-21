@@ -26,6 +26,7 @@ import { cn } from "@/src/lib/utils";
 import { JOB_POST_DRAFT_STORAGE_KEY } from "@/src/lib/clientTypes";
 import type { SkillLevel, SkillItem, JobPostDraft } from "@/src/lib/clientTypes";
 import { getClientEmailFromSSP } from "@/src/lib/clientAuthUtils";
+import { supabaseAdmin } from "@/src/lib/supabase-admin";
 import { GetServerSideProps } from "next";
 
 const PROJECT_CATEGORIES = [
@@ -307,6 +308,20 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       redirect: { destination: "/get-started/client/verify", permanent: false },
     };
   }
+
+  // Ensure client has completed onboarding — required for FK integrity on job_posts
+  const { data: profile } = await supabaseAdmin
+    .from("client_profiles")
+    .select("email")
+    .eq("email", clientEmail)
+    .maybeSingle();
+
+  if (!profile) {
+    return {
+      redirect: { destination: "/get-started/client/onboarding", permanent: false },
+    };
+  }
+
   return { props: { clientEmail } };
 };
 

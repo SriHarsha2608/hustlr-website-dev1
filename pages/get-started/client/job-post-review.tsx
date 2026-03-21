@@ -11,6 +11,7 @@ import {
 } from "@/src/lib/clientTypes";
 import type { SkillItem, JobPostDraft, ClientProfile } from "@/src/lib/clientTypes";
 import { getClientEmailFromSSP } from "@/src/lib/clientAuthUtils";
+import { supabaseAdmin } from "@/src/lib/supabase-admin";
 import { GetServerSideProps } from "next";
 
 const DEFAULT_CLIENT_PROFILE: ClientProfile = {
@@ -31,6 +32,19 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       redirect: { destination: "/get-started/client/verify", permanent: false },
     };
   }
+
+  const { data: profile } = await supabaseAdmin
+    .from("client_profiles")
+    .select("email")
+    .eq("email", clientEmail)
+    .maybeSingle();
+
+  if (!profile) {
+    return {
+      redirect: { destination: "/get-started/client/onboarding", permanent: false },
+    };
+  }
+
   return { props: { clientEmail } };
 };
 

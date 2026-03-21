@@ -16,7 +16,6 @@ import { toast } from "sonner";
 import { CLIENT_PROFILE_STORAGE_KEY } from "@/src/lib/clientTypes";
 import { getClientEmailFromSSP } from "@/src/lib/clientAuthUtils";
 import { GetServerSideProps } from "next";
-import { parse } from "cookie";
 
 const INDUSTRY_OPTIONS = [
   "Technology",
@@ -42,8 +41,6 @@ const LOADER_SEGMENTS = Array.from({ length: 12 }, (_, index) => index);
 const URL_REGEX = /^(https?:\/\/)?([\w-]+\.)+[\w-]{2,}(\/.*)?$/i;
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  // Make cookie available via context.req.cookies (Next.js populates this automatically)
-  void parse; // parse imported for other uses; Next.js reads cookies directly
   const clientEmail = getClientEmailFromSSP(context);
   if (!clientEmail) {
     return {
