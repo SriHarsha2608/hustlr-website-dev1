@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { CLIENT_PROFILE_STORAGE_KEY } from "@/src/lib/clientTypes";
 import { getClientEmailFromSSP } from "@/src/lib/clientAuthUtils";
@@ -241,9 +242,22 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
       <main className="min-h-screen bg-[#f4f4f4] pt-16 md:pt-20">
         <section className="px-6 py-10 sm:px-10 md:px-14 lg:px-24">
           <div className="mx-auto w-full max-w-2xl font-ovo text-black">
-            <h1 className="font-serif text-4xl font-normal tracking-tight text-black/90">
-              Tell Us About Your Business
-            </h1>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="font-serif text-4xl font-normal tracking-tight text-black/90">
+                Tell Us About Your Business
+              </h1>
+              <button
+                type="button"
+                onClick={async () => {
+                  await fetch("/api/client/auth/logout", { method: "POST" });
+                  void router.push("/get-started/client/verify");
+                }}
+                className="mt-1 flex shrink-0 items-center gap-1.5 text-sm font-sans font-medium text-black/50 hover:text-black/80 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </button>
+            </div>
             <p className="mt-6 text-[1.4rem] font-semibold leading-tight text-black/85">
               Help students understand who they will be working with
             </p>

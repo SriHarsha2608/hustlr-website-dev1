@@ -1,7 +1,7 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
-import { MapPin } from "lucide-react";
+import { LogOut, MapPin } from "lucide-react";
 import Nav from "@/src/components/Nav";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -206,7 +206,20 @@ export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: 
           </section>
         ) : (
           <section className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10 md:px-14 lg:px-20">
-            <h1 className="font-serif text-5xl font-normal tracking-tight text-black/90">Job Post Preview</h1>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="font-serif text-5xl font-normal tracking-tight text-black/90">Job Post Preview</h1>
+              <button
+                type="button"
+                onClick={async () => {
+                  await fetch("/api/client/auth/logout", { method: "POST" });
+                  void router.push("/get-started/client/verify");
+                }}
+                className="mt-2 flex shrink-0 items-center gap-1.5 text-sm font-sans font-medium text-black/50 hover:text-black/80 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </button>
+            </div>
             <p className="mt-3 text-[1.2rem] font-semibold text-[#58b7ba]">
               This is how your project will appear to students.
             </p>

@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, ChevronsUpDown, Loader, Plus, X } from "lucide-react";
+import { Check, ChevronsUpDown, Loader, LogOut, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/src/lib/utils";
 import { JOB_POST_DRAFT_STORAGE_KEY } from "@/src/lib/clientTypes";
@@ -663,9 +663,22 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
             }`}
           >
             <div className="w-full max-w-3xl font-ovo text-black">
-              <h1 className="font-serif text-4xl font-normal tracking-tight text-black/90">
-                Post Your First Project
-              </h1>
+              <div className="flex items-start justify-between gap-4">
+                <h1 className="font-serif text-4xl font-normal tracking-tight text-black/90">
+                  Post Your First Project
+                </h1>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetch("/api/client/auth/logout", { method: "POST" });
+                    void router.push("/get-started/client/verify");
+                  }}
+                  className="mt-1 flex shrink-0 items-center gap-1.5 text-sm font-sans font-medium text-black/50 hover:text-black/80 transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </button>
+              </div>
               <p className="mt-3 text-[1.2rem] font-semibold text-[#58b7ba]">
                 Describe the project you want help with. We&apos;ll recommend the best student talent for the job.
               </p>
