@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Nav from "@/src/components/Nav";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { CLIENT_PROFILE_STORAGE_KEY } from "@/src/lib/clientTypes";
 import { getClientEmailFromSSP } from "@/src/lib/clientAuthUtils";
 import { GetServerSideProps } from "next";
+import { createClient } from "@/src/lib/supabase/auth/component";
 
 const INDUSTRY_OPTIONS = [
   "Technology",
@@ -61,6 +62,17 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
   const [description, setDescription] = useState("");
   const [studentWorkReason, setStudentWorkReason] = useState("");
   const [viewState, setViewState] = useState<"form" | "loading" | "success">("form");
+  const [isCompanyLocked, setIsCompanyLocked] = useState(false);
+  const supabaseClient = createClient();
+
+  useEffect(() => {
+    supabaseClient.auth.getUser().then(({ data, error }) => {
+      if (!error && data?.user?.user_metadata?.companyName) {
+        setCompanyName(data.user.user_metadata.companyName);
+        setIsCompanyLocked(true);
+      }
+    });
+  }, [supabaseClient]);
 
   function validateOnboardingForm() {
     if (!companyName.trim()) return "Company Name is required.";
@@ -144,7 +156,7 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
 
         <Nav />
 
-        <main className="min-h-screen bg-[#f4f4f4] pt-16 md:pt-20">
+        <main className="min-h-screen bg-white pt-16 md:pt-20">
           <section className="mx-auto flex min-h-[70vh] w-full max-w-2xl flex-col items-center justify-center px-6 text-center">
             <h1 className="font-serif text-5xl font-normal tracking-tight text-black/90 sm:text-6xl">
               Your Account Is Almost Ready..
@@ -184,7 +196,7 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
 
         <Nav />
 
-        <main className="min-h-screen bg-[#f4f4f4] pt-16 md:pt-20">
+        <main className="min-h-screen bg-white pt-16 md:pt-20">
           <section className="mx-auto flex min-h-[72vh] w-full max-w-[1200px] flex-col items-center justify-center px-6 text-center">
             <div className="flex items-center gap-4">
               <h1 className="font-serif text-4xl font-bold tracking-tight text-black/90 sm:text-5xl">
@@ -238,7 +250,7 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
 
       <Nav />
 
-      <main className="min-h-screen bg-[#f4f4f4] pt-16 md:pt-20">
+      <main className="min-h-screen bg-white pt-16 md:pt-20">
         <section className="px-6 py-10 sm:px-10 md:px-14 lg:px-24">
           <div className="mx-auto w-full max-w-2xl font-ovo text-black">
             <h1 className="font-serif text-4xl font-normal tracking-tight text-black/90">
@@ -258,8 +270,11 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
                   id="onboarding-company-name"
                   required
                   value={companyName}
+                  disabled={isCompanyLocked}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  className="h-8 rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black"
+                  className={`border border-black/25 p-2 w-full font-sans shadow-sm shadow-black/30 text-black text-sm ${
+                    isCompanyLocked ? "bg-black/5 cursor-not-allowed opacity-80" : ""
+                  }`}
                 />
               </div>
 
@@ -270,7 +285,7 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
                   required
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
-                  className="h-8 rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black"
+                  className="border border-black/25 p-2 w-full font-sans shadow-sm shadow-black/30 text-black text-sm"
                 />
               </div>
 
@@ -281,7 +296,7 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
                   required
                   value={linkedin}
                   onChange={(e) => setLinkedin(e.target.value)}
-                  className="h-8 rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black"
+                  className="border border-black/25 p-2 w-full font-sans shadow-sm shadow-black/30 text-black text-sm"
                 />
               </div>
 
@@ -289,7 +304,7 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
                 <label htmlFor="onboarding-industry" className="block text-sm font-semibold text-black">Industry</label>
                 <div className="flex flex-col gap-3 md:flex-row md:items-center">
                   <Select value={industry} onValueChange={setIndustry}>
-                    <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black">
+                    <SelectTrigger className="border border-black/25 p-2 w-full md:w-[220px] font-sans shadow-sm shadow-black/30 text-black text-sm">
                       <SelectValue/>
                     </SelectTrigger>
                     <SelectContent>
@@ -307,7 +322,7 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
                 <label htmlFor="onboarding-company-size" className="block text-sm font-semibold text-black">Company Size</label>
                 <div className="flex flex-col gap-3 md:flex-row md:items-center">
                   <Select value={companySize} onValueChange={setCompanySize}>
-                    <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black">
+                    <SelectTrigger className="border border-black/25 p-2 w-full md:w-[220px] font-sans shadow-sm shadow-black/30 text-black text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -324,7 +339,7 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
               <div className="space-y-2">
                 <label htmlFor="onboarding-country" className="block text-sm font-semibold text-black">Country</label>
                 <Select value={country} onValueChange={setCountry}>
-                  <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border border-black/25 bg-slate-50 text-sm font-sans text-black">
+                  <SelectTrigger className="border border-black/25 p-2 w-full md:w-[220px] font-sans shadow-sm shadow-black/30 text-black text-sm">
                     <SelectValue/>
                   </SelectTrigger>
                   <SelectContent>
@@ -347,9 +362,9 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
                   required
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder={`Briefly explain what your company does\nEx: We are a fintech startup building tools that help small businesses manage payments.`}
+                  placeholder={`Ex: We are a fintech startup building tools that help small businesses manage payments.`}
                   rows={3}
-                  className="min-h-[84px] resize-none rounded-md border border-black/25 bg-slate-50 py-2 text-sm font-sans text-black"
+                  className="min-h-[84px] resize-none border border-black/25 p-2 w-full font-sans shadow-sm shadow-black/30 text-black text-sm"
                 />
               </div>
 
@@ -359,9 +374,9 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
                   id="onboarding-student-work-reason"
                   value={studentWorkReason}
                   onChange={(e) => setStudentWorkReason(e.target.value)}
-                  placeholder={`Share what makes your company a great place for students to work.\nEx: Students get ownership, mentorship from senior team members, and real impact on live projects.`}
+                  placeholder={`Ex: Students get ownership, mentorship from senior team members, and real impact on live projects.`}
                   rows={3}
-                  className="min-h-[84px] resize-none rounded-md border border-black/25 bg-slate-50 py-2 text-sm font-sans text-black"
+                  className="min-h-[84px] resize-none border border-black/25 p-2 w-full font-sans shadow-sm shadow-black/30 text-black text-sm"
                 />
               </div>
 
