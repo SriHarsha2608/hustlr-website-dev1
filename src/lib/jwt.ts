@@ -8,6 +8,9 @@ export const createToken = (email: string) => {
 export const createAdminToken = (email: string) => {
   return jwt.sign({ email, role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
 };
+export const createClientToken = (email: string) => {
+  return jwt.sign({ email, role: "client" }, JWT_SECRET, { expiresIn: "7d" });
+};
 
 export const verifyToken = (token: string) => {
   return jwt.verify(token, JWT_SECRET);

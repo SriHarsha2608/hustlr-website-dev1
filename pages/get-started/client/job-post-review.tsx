@@ -4,11 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { MapPin } from "lucide-react";
 import Nav from "@/src/components/Nav";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   JOB_POST_DRAFT_STORAGE_KEY,
   CLIENT_PROFILE_STORAGE_KEY,
 } from "@/src/lib/clientTypes";
 import type { SkillItem, JobPostDraft, ClientProfile } from "@/src/lib/clientTypes";
+import { getClientEmailFromSSP } from "@/src/lib/clientAuthUtils";
+import { GetServerSideProps } from "next";
 
 const DEFAULT_CLIENT_PROFILE: ClientProfile = {
   companyName: "Your Company",
@@ -21,59 +24,128 @@ const DEFAULT_CLIENT_PROFILE: ClientProfile = {
   studentWorkReason: "No response added yet.",
 };
 
-export default function ClientJobPostReviewPage() {
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const clientEmail = getClientEmailFromSSP(context);
+  if (!clientEmail) {
+    return {
+      redirect: { destination: "/get-started/client/verify", permanent: false },
+    };
+  }
+  return { props: { clientEmail } };
+};
+
+export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: string }) {
   const router = useRouter();
   const [previewTab, setPreviewTab] = useState<"details" | "client">("details");
   const [draft, setDraft] = useState<JobPostDraft | null>(null);
   const [clientProfile, setClientProfile] = useState<ClientProfile>(DEFAULT_CLIENT_PROFILE);
+  const [isPosting, setIsPosting] = useState(false);
 
+  // Load draft — try DB first, fall back to localStorage
   useEffect(() => {
-    const rawDraft = window.localStorage.getItem(JOB_POST_DRAFT_STORAGE_KEY);
-    if (!rawDraft) return;
-
-    try {
-      const parsed = JSON.parse(rawDraft) as Partial<JobPostDraft>;
-      if (
-        typeof parsed.title === "string" &&
-        typeof parsed.category === "string" &&
-        typeof parsed.description === "string" &&
-        typeof parsed.timelineEstimate === "string" &&
-        typeof parsed.deliverables === "string" &&
-        typeof parsed.budget === "number" &&
-        Array.isArray(parsed.skills)
-      ) {
-        const validSkills = parsed.skills.filter(
-          (item): item is SkillItem =>
-            typeof item?.name === "string" &&
-            (item?.level === "Required" || item?.level === "Good to have"),
-        );
-
-        setDraft({
-          title: parsed.title,
-          category: parsed.category,
-          description: parsed.description,
-          timelineEstimate: parsed.timelineEstimate,
-          deliverables: parsed.deliverables,
-          budget: parsed.budget,
-          skills: validSkills,
-        });
+    async function loadDraft() {
+      try {
+        const res = await fetch("/api/client/job-post/get");
+        if (res.ok) {
+          const { draft: dbDraft } = await res.json();
+          if (dbDraft) {
+            setDraft(dbDraft as JobPostDraft);
+            return;
+          }
+        }
+      } catch {
+        // DB unreachable — fall through to localStorage
       }
-    } catch {
-      // Keep null draft on parse failure.
+
+      // Fallback to localStorage
+      const rawDraft = window.localStorage.getItem(JOB_POST_DRAFT_STORAGE_KEY);
+      if (!rawDraft) return;
+      try {
+        const parsed = JSON.parse(rawDraft) as Partial<JobPostDraft>;
+        if (
+          typeof parsed.title === "string" &&
+          typeof parsed.category === "string" &&
+          typeof parsed.description === "string" &&
+          typeof parsed.timelineEstimate === "string" &&
+          typeof parsed.deliverables === "string" &&
+          typeof parsed.budget === "number" &&
+          Array.isArray(parsed.skills)
+        ) {
+          const validSkills = parsed.skills.filter(
+            (item): item is SkillItem =>
+              typeof item?.name === "string" &&
+              (item?.level === "Required" || item?.level === "Good to have"),
+          );
+          setDraft({
+            title: parsed.title,
+            category: parsed.category,
+            description: parsed.description,
+            timelineEstimate: parsed.timelineEstimate,
+            deliverables: parsed.deliverables,
+            budget: parsed.budget,
+            skills: validSkills,
+          });
+        }
+      } catch {
+        // Keep null draft on parse failure.
+      }
     }
+
+    void loadDraft();
   }, []);
 
+  // Load client profile — try DB first, fall back to localStorage
   useEffect(() => {
-    const rawProfile = window.localStorage.getItem(CLIENT_PROFILE_STORAGE_KEY);
-    if (!rawProfile) return;
+    async function loadProfile() {
+      try {
+        const res = await fetch("/api/client/profile/get");
+        if (res.ok) {
+          const { profile } = await res.json();
+          if (profile) {
+            setClientProfile((prev) => ({ ...prev, ...profile }));
+            return;
+          }
+        }
+      } catch {
+        // fall through to localStorage
+      }
+
+      const rawProfile = window.localStorage.getItem(CLIENT_PROFILE_STORAGE_KEY);
+      if (!rawProfile) return;
+      try {
+        const parsed = JSON.parse(rawProfile) as Partial<ClientProfile>;
+        setClientProfile((prev) => ({ ...prev, ...parsed }));
+      } catch {
+        // Keep defaults if parsing fails.
+      }
+    }
+
+    void loadProfile();
+  }, []);
+
+  async function onPostProject() {
+    if (isPosting || !draft) return;
+    setIsPosting(true);
 
     try {
-      const parsed = JSON.parse(rawProfile) as Partial<ClientProfile>;
-      setClientProfile((prev) => ({ ...prev, ...parsed }));
+      const res = await fetch("/api/client/job-post/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...draft, email: clientEmail, status: "published" }),
+      });
+
+      if (!res.ok) {
+        toast.error("Failed to post project. Please try again.");
+        setIsPosting(false);
+        return;
+      }
+
+      void router.push("/get-started/client/job-post?view=submitted");
     } catch {
-      // Keep defaults if parsing fails.
+      toast.error("Network error. Please try again.");
+      setIsPosting(false);
     }
-  }, []);
+  }
 
   const formattedBudget = useMemo(
     () => new Intl.NumberFormat("en-IN").format(draft?.budget ?? 0),
@@ -231,12 +303,11 @@ export default function ClientJobPostReviewPage() {
               <aside className="flex h-fit flex-col gap-3 lg:pt-1">
                 <Button
                   type="button"
-                  onClick={() => {
-                    void router.push("/get-started/client/job-post?view=submitted");
-                  }}
+                  disabled={isPosting}
+                  onClick={() => void onPostProject()}
                   className="h-10 rounded-lg bg-[#a9c165] text-sm font-semibold text-white hover:bg-[#95af57]"
                 >
-                  Post Project
+                  {isPosting ? "Posting..." : "Post Project"}
                 </Button>
                 <Button
                   type="button"

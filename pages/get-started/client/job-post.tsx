@@ -25,6 +25,8 @@ import { toast } from "sonner";
 import { cn } from "@/src/lib/utils";
 import { JOB_POST_DRAFT_STORAGE_KEY } from "@/src/lib/clientTypes";
 import type { SkillLevel, SkillItem, JobPostDraft } from "@/src/lib/clientTypes";
+import { getClientEmailFromSSP } from "@/src/lib/clientAuthUtils";
+import { GetServerSideProps } from "next";
 
 const PROJECT_CATEGORIES = [
   "Web Development",
@@ -298,7 +300,17 @@ const PREVIEW_DELAY_MS = 1800;
 const PROJECT_SUBMITTED_REDIRECT_DELAY_MS = 2500;
 const MAX_SKILLS = 20;
 
-export default function ClientJobPostPage() {
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const clientEmail = getClientEmailFromSSP(context);
+  if (!clientEmail) {
+    return {
+      redirect: { destination: "/get-started/client/verify", permanent: false },
+    };
+  }
+  return { props: { clientEmail } };
+};
+
+export default function ClientJobPostPage({ clientEmail }: { clientEmail: string }) {
   const router = useRouter();
   const [view, setView] = useState<"form" | "loading" | "submitted">("form");
   const [step, setStep] = useState<1 | 2>(1);
@@ -487,8 +499,17 @@ export default function ClientJobPostPage() {
     try {
       window.localStorage.setItem(JOB_POST_DRAFT_STORAGE_KEY, JSON.stringify(draft));
     } catch {
-      toast.error("Could not save your draft locally. Please try again.");
+      // localStorage failure is non-critical; DB save will still happen
     }
+
+    // Persist to DB in the background — fire and forget, errors are non-blocking
+    fetch("/api/client/job-post/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...draft, email: clientEmail }),
+    }).catch(() => {
+      // swallow — localStorage copy is the fallback
+    });
   }
 
   function validateStepOne() {

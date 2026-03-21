@@ -14,6 +14,9 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { CLIENT_PROFILE_STORAGE_KEY } from "@/src/lib/clientTypes";
+import { getClientEmailFromSSP } from "@/src/lib/clientAuthUtils";
+import { GetServerSideProps } from "next";
+import { parse } from "cookie";
 
 const INDUSTRY_OPTIONS = [
   "Technology",
@@ -38,7 +41,19 @@ const LOADER_SEGMENTS = Array.from({ length: 12 }, (_, index) => index);
 
 const URL_REGEX = /^(https?:\/\/)?([\w-]+\.)+[\w-]{2,}(\/.*)?$/i;
 
-export default function ClientOnboardingPage() {
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  // Make cookie available via context.req.cookies (Next.js populates this automatically)
+  void parse; // parse imported for other uses; Next.js reads cookies directly
+  const clientEmail = getClientEmailFromSSP(context);
+  if (!clientEmail) {
+    return {
+      redirect: { destination: "/get-started/client/verify", permanent: false },
+    };
+  }
+  return { props: { clientEmail } };
+};
+
+export default function ClientOnboardingPage({ clientEmail }: { clientEmail: string }) {
   const router = useRouter();
   const [companyName, setCompanyName] = useState("");
   const [website, setWebsite] = useState("");
@@ -80,27 +95,46 @@ export default function ClientOnboardingPage() {
       return;
     }
 
+    const profileData = {
+      companyName: companyName.trim(),
+      website: website.trim(),
+      linkedin: linkedin.trim(),
+      industry,
+      companySize,
+      country,
+      description: description.trim(),
+      studentWorkReason: studentWorkReason.trim(),
+    };
+
+    // Save to localStorage as a fast fallback
     try {
-      window.localStorage.setItem(
-        CLIENT_PROFILE_STORAGE_KEY,
-        JSON.stringify({
-          companyName: companyName.trim(),
-          website: website.trim(),
-          linkedin: linkedin.trim(),
-          industry,
-          companySize,
-          country,
-          description: description.trim(),
-          studentWorkReason: studentWorkReason.trim(),
-        }),
-      );
+      window.localStorage.setItem(CLIENT_PROFILE_STORAGE_KEY, JSON.stringify(profileData));
     } catch {
-      toast.error("Could not save your profile locally. Please try again.");
-      return;
+      // non-critical; continue
     }
 
     setViewState("loading");
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // Persist to database
+    try {
+      const res = await fetch("/api/client/profile/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...profileData, email: clientEmail }),
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "Unknown error" }));
+        toast.error(error || "Failed to save profile. Please try again.");
+        setViewState("form");
+        return;
+      }
+    } catch {
+      toast.error("Network error saving profile. Please try again.");
+      setViewState("form");
+      return;
+    }
+
     setViewState("success");
   }
 
@@ -156,9 +190,7 @@ export default function ClientOnboardingPage() {
         <main className="min-h-screen bg-[#f4f4f4] pt-16 md:pt-20">
           <section className="mx-auto flex min-h-[72vh] w-full max-w-[1200px] flex-col items-center justify-center px-6 text-center">
             <div className="flex items-center gap-4">
-              <h1
-                className="font-serif text-4xl font-bold tracking-tight text-black/90 sm:text-5xl"
-              >
+              <h1 className="font-serif text-4xl font-bold tracking-tight text-black/90 sm:text-5xl">
                 Your Hustlr Account Is Ready
               </h1>
               <img
@@ -188,7 +220,7 @@ export default function ClientOnboardingPage() {
                 variant="outline"
                 onClick={() => {
                   toast.info("Client dashboard is coming soon!");
-                  router.push("/");
+                  void router.push("/");
                 }}
                 className="h-11 rounded-2xl border-black/20 bg-transparent text-base font-semibold text-black hover:bg-black/5"
               >
@@ -318,8 +350,7 @@ export default function ClientOnboardingPage() {
                   required
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder={`Briefly explain what your company does
-Ex: We are a fintech startup building tools that help small businesses manage payments.`}
+                  placeholder={`Briefly explain what your company does\nEx: We are a fintech startup building tools that help small businesses manage payments.`}
                   rows={3}
                   className="min-h-[84px] resize-none rounded-md border border-black/25 bg-slate-50 py-2 text-sm font-sans text-black"
                 />
@@ -331,8 +362,7 @@ Ex: We are a fintech startup building tools that help small businesses manage pa
                   id="onboarding-student-work-reason"
                   value={studentWorkReason}
                   onChange={(e) => setStudentWorkReason(e.target.value)}
-                  placeholder={`Share what makes your company a great place for students to work.
-Ex: Students get ownership, mentorship from senior team members, and real impact on live projects.`}
+                  placeholder={`Share what makes your company a great place for students to work.\nEx: Students get ownership, mentorship from senior team members, and real impact on live projects.`}
                   rows={3}
                   className="min-h-[84px] resize-none rounded-md border border-black/25 bg-slate-50 py-2 text-sm font-sans text-black"
                 />

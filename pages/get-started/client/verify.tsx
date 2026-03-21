@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Nav from "@/src/components/Nav";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { createClient } from "@/src/lib/supabase/auth/component";
+import { verifyToken } from "@/src/lib/jwt";
+import { GetServerSideProps } from "next";
+import { parse } from "cookie";
+import type { JwtPayload } from "jsonwebtoken";
 
 const COUNTRY_CODES = [
   { iso: "IN", dialCode: "+91", label: "🇮🇳 +91" },
@@ -116,8 +121,34 @@ const COUNTRY_CODES = [
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d).{6,}$/;
 
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const cookies = context.req.headers.cookie;
+  if (cookies) {
+    const parsed = parse(cookies);
+    const token = parsed.session;
+    if (token) {
+      try {
+        const payload = verifyToken(token) as JwtPayload;
+        if (payload && typeof payload !== "string" && payload.email && payload.role === "client") {
+          return {
+            redirect: { destination: "/get-started/client/onboarding", permanent: false },
+          };
+        }
+      } catch {
+        // invalid token — continue to render page
+      }
+    }
+  }
+  return { props: {} };
+};
+
 export default function ClientVerifyPage() {
   const router = useRouter();
+  const supabaseClient = createClient();
+  const inFlight = useRef(false);
+
+  const [step, setStep] = useState<"form" | "emailSent">("form");
+  const [mode, setMode] = useState<"signup" | "signin">("signup");
   const [countryCode, setCountryCode] = useState("IN");
   const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
@@ -126,28 +157,88 @@ export default function ClientVerifyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function validateForm() {
-    if (!companyName.trim() || !email.trim() || !password.trim() || !phone.trim()) {
-      return "Please fill all fields before continuing.";
-    }
-
-    if (!EMAIL_REGEX.test(email.trim())) {
-      return "Please enter a valid email address.";
-    }
-
+    if (!email.trim()) return "Please enter your email.";
+    if (!EMAIL_REGEX.test(email.trim())) return "Please enter a valid email address.";
+    if (!password) return "Please enter your password.";
     if (!PASSWORD_REGEX.test(password)) {
       return "Password must be at least 6 characters with 1 uppercase letter and 1 number.";
     }
-
-    const digitsOnlyPhone = phone.replace(/\D/g, "");
-    if (digitsOnlyPhone.length < 6 || digitsOnlyPhone.length > 15) {
-      return "Please enter a valid phone number.";
+    if (mode === "signup") {
+      if (!companyName.trim()) return "Please enter your company name.";
+      const digits = phone.replace(/\D/g, "");
+      if (digits.length < 6 || digits.length > 15) return "Please enter a valid phone number.";
     }
-
     return null;
   }
 
-  async function submitCreateAccount() {
-    if (isSubmitting) return;
+  async function handleSignUp() {
+    const selectedCode = COUNTRY_CODES.find((c) => c.iso === countryCode);
+    const dialCode = selectedCode?.dialCode ?? "+91";
+    const fullPhone = `${dialCode}${phone.trim()}`;
+
+    const { error } = await supabaseClient.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { role: "client", companyName: companyName.trim(), phone: fullPhone },
+        emailRedirectTo: `${window.location.origin}/api/client/auth/confirm?next=/get-started/client/onboarding`,
+      },
+    });
+
+    if (error) {
+      if (error.status === 429) {
+        toast.error("Too many attempts. Please wait a minute and try again.");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+
+    setStep("emailSent");
+  }
+
+  async function handleSignIn() {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (error) {
+      switch (error.code) {
+        case "invalid_credentials":
+          toast.error("Invalid email or password.");
+          break;
+        case "email_not_confirmed":
+          toast.error("Please verify your email first. Check your inbox.");
+          break;
+        default:
+          toast.error(error.message || "Sign in failed.");
+      }
+      return;
+    }
+
+    if (!data.session?.access_token) {
+      toast.error("Unable to establish session. Please try again.");
+      return;
+    }
+
+    const res = await fetch("/api/client/auth/exchange", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ access_token: data.session.access_token }),
+    });
+
+    if (res.ok) {
+      toast.success("Signed in successfully!");
+      void router.push("/get-started/client/onboarding");
+    } else {
+      toast.error("Failed to complete sign in. Please try again.");
+    }
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (inFlight.current) return;
 
     const validationError = validateForm();
     if (validationError) {
@@ -155,20 +246,54 @@ export default function ClientVerifyPage() {
       return;
     }
 
+    inFlight.current = true;
     setIsSubmitting(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    toast.success(
-      `Create Account captured for ${companyName.trim()}. We will notify you when client onboarding opens.`
-    );
-    setIsSubmitting(false);
-    router.push("/get-started/client/onboarding");
+    try {
+      if (mode === "signup") {
+        await handleSignUp();
+      } else {
+        await handleSignIn();
+      }
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      inFlight.current = false;
+      setIsSubmitting(false);
+    }
   }
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    await submitCreateAccount();
+  if (step === "emailSent") {
+    return (
+      <>
+        <Head>
+          <title>Check Your Email - Hustlr</title>
+        </Head>
+        <Nav />
+        <main className="min-h-screen bg-white flex items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-10 text-center font-sans shadow-md">
+            <h1 className="text-2xl font-semibold text-black">Check your inbox</h1>
+            <p className="mt-3 text-sm text-black/65 leading-relaxed">
+              We sent a confirmation link to <strong>{email}</strong>.
+              Click it to verify your account and get started.
+            </p>
+            <p className="mt-4 text-xs text-black/45">
+              Already have an account?{" "}
+              <button
+                type="button"
+                className="text-black underline underline-offset-4"
+                onClick={() => {
+                  setStep("form");
+                  setMode("signin");
+                }}
+              >
+                Sign in instead
+              </button>
+            </p>
+          </div>
+        </main>
+      </>
+    );
   }
 
   return (
@@ -184,27 +309,31 @@ export default function ClientVerifyPage() {
           <div className="bg-white px-6 py-10 sm:px-10 md:px-14 lg:px-20 flex items-center">
             <div className="w-full font-sans text-black">
               <h1 className="text-3xl font-semibold tracking-tight">
-                Let&apos;s Get Started
+                {mode === "signup" ? "Let's Get Started" : "Welcome Back"}
               </h1>
               <p className="mt-3 text-black font-semibold">
-                Find top student talent for your next project
+                {mode === "signup"
+                  ? "Find top student talent for your next project"
+                  : "Sign in to your Hustlr client account"}
               </p>
 
-              <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+              <form onSubmit={onSubmit} className="mt-8 space-y-5">
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label htmlFor="verify-company-name" className="block text-sm font-medium">Company Name</label>
-                    <Input
-                      id="verify-company-name"
-                      required
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      autoComplete="organization"
-                      className="h-11 w-full rounded-2xl border-black/20 bg-white shadow-[-1px_2px_3px_rgba(0,0,0,0.1)]"
-                    />
-                  </div>
+                  {mode === "signup" && (
+                    <div className="space-y-2">
+                      <label htmlFor="verify-company-name" className="block text-sm font-medium">Company Name</label>
+                      <Input
+                        id="verify-company-name"
+                        required
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        autoComplete="organization"
+                        className="h-11 w-full rounded-2xl border-black/20 bg-white shadow-[-1px_2px_3px_rgba(0,0,0,0.1)]"
+                      />
+                    </div>
+                  )}
 
-                  <div className="hidden md:block" aria-hidden="true" />
+                  {mode === "signup" && <div className="hidden md:block" aria-hidden="true" />}
 
                   <div className="space-y-2">
                     <label htmlFor="verify-email" className="block text-sm font-medium">Email</label>
@@ -222,9 +351,11 @@ export default function ClientVerifyPage() {
                   <div className="space-y-2">
                     <label htmlFor="verify-password" className="flex items-center gap-2 text-sm font-medium">
                       Password
-                      <span className="text-[11px] font-normal text-black/45 whitespace-nowrap">
-                        At least 6 characters, 1 uppercase, 1 number
-                      </span>
+                      {mode === "signup" && (
+                        <span className="text-[11px] font-normal text-black/45 whitespace-nowrap">
+                          At least 6 characters, 1 uppercase, 1 number
+                        </span>
+                      )}
                     </label>
                     <Input
                       id="verify-password"
@@ -233,39 +364,41 @@ export default function ClientVerifyPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       minLength={6}
-                      autoComplete="new-password"
+                      autoComplete={mode === "signup" ? "new-password" : "current-password"}
                       className="h-11 w-full rounded-2xl border-black/20 bg-white shadow-[-1px_2px_3px_rgba(0,0,0,0.1)]"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="verify-phone" className="block text-sm font-medium">Phone Number</label>
-                    <div className="flex h-11 rounded-2xl border border-black/20 bg-white overflow-hidden shadow-[-1px_2px_3px_rgba(0,0,0,0.1)]">
-                      <Select value={countryCode} onValueChange={setCountryCode}>
-                        <SelectTrigger className="h-11 w-auto min-w-[90px] border-none border-r border-black/20 bg-white text-black text-sm rounded-none focus:ring-0 focus:ring-offset-0 px-3">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {COUNTRY_CODES.map((code) => (
-                            <SelectItem key={code.iso} value={code.iso}>
-                              {code.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <input
-                        id="verify-phone"
-                        type="tel"
-                        required
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        autoComplete="tel"
-                        className="flex-1 h-11 border-none bg-white rounded-none outline-none px-3 text-base"
-                      />
+                  {mode === "signup" && (
+                    <div className="space-y-2">
+                      <label htmlFor="verify-phone" className="block text-sm font-medium">Phone Number</label>
+                      <div className="flex h-11 rounded-2xl border border-black/20 bg-white overflow-hidden shadow-[-1px_2px_3px_rgba(0,0,0,0.1)]">
+                        <Select value={countryCode} onValueChange={setCountryCode}>
+                          <SelectTrigger className="h-11 w-auto min-w-[90px] border-none border-r border-black/20 bg-white text-black text-sm rounded-none focus:ring-0 focus:ring-offset-0 px-3">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {COUNTRY_CODES.map((code) => (
+                              <SelectItem key={code.iso} value={code.iso}>
+                                {code.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <input
+                          id="verify-phone"
+                          type="tel"
+                          required
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          autoComplete="tel"
+                          className="flex-1 h-11 border-none bg-white rounded-none outline-none px-3 text-base"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="hidden md:block" aria-hidden="true" />
+                  {mode === "signup" && <div className="hidden md:block" aria-hidden="true" />}
                 </div>
 
                 <div className="pt-2">
@@ -275,7 +408,11 @@ export default function ClientVerifyPage() {
                       disabled={isSubmitting}
                       className="h-10 w-full sm:w-[265px] rounded-2xl bg-black text-white shadow-[-1px_2px_3px_rgba(0,0,0,0.1)] hover:bg-black/90"
                     >
-                      {isSubmitting ? "Please wait..." : "Create Account"}
+                      {isSubmitting
+                        ? "Please wait..."
+                        : mode === "signup"
+                        ? "Create Account"
+                        : "Sign In"}
                     </Button>
 
                     <div className="space-y-2">
@@ -283,15 +420,15 @@ export default function ClientVerifyPage() {
                         type="button"
                         variant="outline"
                         disabled={isSubmitting}
-                        onClick={() => {
-                          toast.info("Client sign-in is coming soon!");
-                        }}
+                        onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
                         className="h-10 w-full sm:w-[265px] rounded-2xl border-black/20 bg-white text-black shadow-[-1px_2px_3px_rgba(0,0,0,0.1)] hover:bg-black/5"
                       >
-                        {isSubmitting ? "Please wait..." : "Sign In"}
+                        {mode === "signup" ? "Sign In Instead" : "Create Account Instead"}
                       </Button>
                       <p className="text-center text-xs text-black/45">
-                        Already have an account?
+                        {mode === "signup"
+                          ? "Already have an account?"
+                          : "New to Hustlr?"}
                       </p>
                     </div>
                   </div>
