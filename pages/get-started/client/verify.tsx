@@ -176,7 +176,7 @@ export default function ClientVerifyPage() {
     const dialCode = selectedCode?.dialCode ?? "+91";
     const fullPhone = `${dialCode}${phone.trim()}`;
 
-    const { error } = await supabaseClient.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
       email: email.trim(),
       password,
       options: {
@@ -190,6 +190,23 @@ export default function ClientVerifyPage() {
         toast.error("Too many attempts. Please wait a minute and try again.");
       } else {
         toast.error(error.message);
+      }
+      return;
+    }
+
+    // If Supabase returned a session immediately, email confirmation is disabled —
+    // exchange the token directly instead of waiting for an email that will never arrive.
+    if (data.session?.access_token) {
+      const res = await fetch("/api/client/auth/exchange", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access_token: data.session.access_token }),
+      });
+      if (res.ok) {
+        void router.push("/get-started/client/onboarding");
+      } else {
+        toast.error("Account created but sign-in failed. Please sign in manually.");
+        setMode("signin");
       }
       return;
     }
@@ -208,9 +225,27 @@ export default function ClientVerifyPage() {
         case "invalid_credentials":
           toast.error("Invalid email or password.");
           break;
-        case "email_not_confirmed":
-          toast.error("Please verify your email first. Check your inbox.");
+        case "email_not_confirmed": {
+          // Resend the confirmation email — same pattern as student login flow
+          const { error: resendError } = await supabaseClient.auth.resend({
+            type: "signup",
+            email: email.trim(),
+            options: {
+              emailRedirectTo: `${window.location.origin}/api/client/auth/confirm?next=/get-started/client/onboarding`,
+            },
+          });
+          if (resendError) {
+            if (resendError.status === 429) {
+              toast.error("Too many attempts. Please wait a minute and try again.");
+            } else {
+              toast.error(resendError.message || "Failed to resend verification email.");
+            }
+          } else {
+            toast.success("Verification email sent! Check your inbox.");
+            setStep("emailSent");
+          }
           break;
+        }
         default:
           toast.error(error.message || "Sign in failed.");
       }
