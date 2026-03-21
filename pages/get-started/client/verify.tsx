@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import Nav from "@/src/components/Nav";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Eye, EyeOff } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -153,6 +154,7 @@ export default function ClientVerifyPage() {
   const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -357,16 +359,26 @@ export default function ClientVerifyPage() {
                         </span>
                       )}
                     </label>
-                    <Input
-                      id="verify-password"
-                      required
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      minLength={6}
-                      autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                      className="h-11 w-full rounded-2xl border-black/20 bg-white shadow-[-1px_2px_3px_rgba(0,0,0,0.1)]"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="verify-password"
+                        required
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        minLength={6}
+                        autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                        className="h-11 w-full rounded-2xl border-black/20 bg-white pr-10 shadow-[-1px_2px_3px_rgba(0,0,0,0.1)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-black/50 hover:text-black/80 focus:outline-none"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
 
                   {mode === "signup" && (
