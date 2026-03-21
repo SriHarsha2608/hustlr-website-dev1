@@ -14,103 +14,103 @@ import {
 import { toast } from "sonner";
 
 const COUNTRY_CODES = [
-  { value: "+91", label: "🇮🇳 +91" },
-  { value: "+1", label: "🇺🇸 +1" },
-  { value: "+1", label: "🇨🇦 +1" },
-  { value: "+7", label: "🇷🇺 +7" },
-  { value: "+20", label: "🇪🇬 +20" },
-  { value: "+27", label: "🇿🇦 +27" },
-  { value: "+31", label: "🇳🇱 +31" },
-  { value: "+32", label: "🇧🇪 +32" },
-  { value: "+33", label: "🇫🇷 +33" },
-  { value: "+34", label: "🇪🇸 +34" },
-  { value: "+39", label: "🇮🇹 +39" },
-  { value: "+41", label: "🇨🇭 +41" },
-  { value: "+43", label: "🇦🇹 +43" },
-  { value: "+44", label: "🇬🇧 +44" },
-  { value: "+45", label: "🇩🇰 +45" },
-  { value: "+46", label: "🇸🇪 +46" },
-  { value: "+47", label: "🇳🇴 +47" },
-  { value: "+48", label: "🇵🇱 +48" },
-  { value: "+49", label: "🇩🇪 +49" },
-  { value: "+52", label: "🇲🇽 +52" },
-  { value: "+54", label: "🇦🇷 +54" },
-  { value: "+55", label: "🇧🇷 +55" },
-  { value: "+56", label: "🇨🇱 +56" },
-  { value: "+57", label: "🇨🇴 +57" },
-  { value: "+60", label: "🇲🇾 +60" },
-  { value: "+61", label: "🇦🇺 +61" },
-  { value: "+62", label: "🇮🇩 +62" },
-  { value: "+63", label: "🇵🇭 +63" },
-  { value: "+64", label: "🇳🇿 +64" },
-  { value: "+65", label: "🇸🇬 +65" },
-  { value: "+66", label: "🇹🇭 +66" },
-  { value: "+81", label: "🇯🇵 +81" },
-  { value: "+82", label: "🇰🇷 +82" },
-  { value: "+84", label: "🇻🇳 +84" },
-  { value: "+86", label: "🇨🇳 +86" },
-  { value: "+90", label: "🇹🇷 +90" },
-  { value: "+92", label: "🇵🇰 +92" },
-  { value: "+93", label: "🇦🇫 +93" },
-  { value: "+94", label: "🇱🇰 +94" },
-  { value: "+95", label: "🇲🇲 +95" },
-  { value: "+98", label: "🇮🇷 +98" },
-  { value: "+212", label: "🇲🇦 +212" },
-  { value: "+213", label: "🇩🇿 +213" },
-  { value: "+216", label: "🇹🇳 +216" },
-  { value: "+218", label: "🇱🇾 +218" },
-  { value: "+220", label: "🇬🇲 +220" },
-  { value: "+221", label: "🇸🇳 +221" },
-  { value: "+233", label: "🇬🇭 +233" },
-  { value: "+234", label: "🇳🇬 +234" },
-  { value: "+243", label: "🇨🇩 +243" },
-  { value: "+251", label: "🇪🇹 +251" },
-  { value: "+254", label: "🇰🇪 +254" },
-  { value: "+255", label: "🇹🇿 +255" },
-  { value: "+256", label: "🇺🇬 +256" },
-  { value: "+260", label: "🇿🇲 +260" },
-  { value: "+263", label: "🇿🇼 +263" },
-  { value: "+351", label: "🇵🇹 +351" },
-  { value: "+352", label: "🇱🇺 +352" },
-  { value: "+353", label: "🇮🇪 +353" },
-  { value: "+354", label: "🇮🇸 +354" },
-  { value: "+355", label: "🇦🇱 +355" },
-  { value: "+357", label: "🇨🇾 +357" },
-  { value: "+358", label: "🇫🇮 +358" },
-  { value: "+359", label: "🇧🇬 +359" },
-  { value: "+370", label: "🇱🇹 +370" },
-  { value: "+371", label: "🇱🇻 +371" },
-  { value: "+372", label: "🇪🇪 +372" },
-  { value: "+380", label: "🇺🇦 +380" },
-  { value: "+385", label: "🇭🇷 +385" },
-  { value: "+386", label: "🇸🇮 +386" },
-  { value: "+387", label: "🇧🇦 +387" },
-  { value: "+420", label: "🇨🇿 +420" },
-  { value: "+421", label: "🇸🇰 +421" },
-  { value: "+852", label: "🇭🇰 +852" },
-  { value: "+880", label: "🇧🇩 +880" },
-  { value: "+961", label: "🇱🇧 +961" },
-  { value: "+962", label: "🇯🇴 +962" },
-  { value: "+963", label: "🇸🇾 +963" },
-  { value: "+964", label: "🇮🇶 +964" },
-  { value: "+965", label: "🇰🇼 +965" },
-  { value: "+966", label: "🇸🇦 +966" },
-  { value: "+967", label: "🇾🇪 +967" },
-  { value: "+968", label: "🇴🇲 +968" },
-  { value: "+970", label: "🇵🇸 +970" },
-  { value: "+971", label: "🇦🇪 +971" },
-  { value: "+972", label: "🇮🇱 +972" },
-  { value: "+973", label: "🇧🇭 +973" },
-  { value: "+974", label: "🇶🇦 +974" },
-  { value: "+975", label: "🇧🇹 +975" },
-  { value: "+976", label: "🇲🇳 +976" },
-  { value: "+977", label: "🇳🇵 +977" },
-  { value: "+992", label: "🇹🇯 +992" },
-  { value: "+993", label: "🇹🇲 +993" },
-  { value: "+994", label: "🇦🇿 +994" },
-  { value: "+995", label: "🇬🇪 +995" },
-  { value: "+996", label: "🇰🇬 +996" },
-  { value: "+998", label: "🇺🇿 +998" },
+  { iso: "IN", dialCode: "+91", label: "🇮🇳 +91" },
+  { iso: "US", dialCode: "+1", label: "🇺🇸 +1" },
+  { iso: "CA", dialCode: "+1", label: "🇨🇦 +1" },
+  { iso: "RU", dialCode: "+7", label: "🇷🇺 +7" },
+  { iso: "EG", dialCode: "+20", label: "🇪🇬 +20" },
+  { iso: "ZA", dialCode: "+27", label: "🇿🇦 +27" },
+  { iso: "NL", dialCode: "+31", label: "🇳🇱 +31" },
+  { iso: "BE", dialCode: "+32", label: "🇧🇪 +32" },
+  { iso: "FR", dialCode: "+33", label: "🇫🇷 +33" },
+  { iso: "ES", dialCode: "+34", label: "🇪🇸 +34" },
+  { iso: "IT", dialCode: "+39", label: "🇮🇹 +39" },
+  { iso: "CH", dialCode: "+41", label: "🇨🇭 +41" },
+  { iso: "AT", dialCode: "+43", label: "🇦🇹 +43" },
+  { iso: "GB", dialCode: "+44", label: "🇬🇧 +44" },
+  { iso: "DK", dialCode: "+45", label: "🇩🇰 +45" },
+  { iso: "SE", dialCode: "+46", label: "🇸🇪 +46" },
+  { iso: "NO", dialCode: "+47", label: "🇳🇴 +47" },
+  { iso: "PL", dialCode: "+48", label: "🇵🇱 +48" },
+  { iso: "DE", dialCode: "+49", label: "🇩🇪 +49" },
+  { iso: "MX", dialCode: "+52", label: "🇲🇽 +52" },
+  { iso: "AR", dialCode: "+54", label: "🇦🇷 +54" },
+  { iso: "BR", dialCode: "+55", label: "🇧🇷 +55" },
+  { iso: "CL", dialCode: "+56", label: "🇨🇱 +56" },
+  { iso: "CO", dialCode: "+57", label: "🇨🇴 +57" },
+  { iso: "MY", dialCode: "+60", label: "🇲🇾 +60" },
+  { iso: "AU", dialCode: "+61", label: "🇦🇺 +61" },
+  { iso: "ID", dialCode: "+62", label: "🇮🇩 +62" },
+  { iso: "PH", dialCode: "+63", label: "🇵🇭 +63" },
+  { iso: "NZ", dialCode: "+64", label: "🇳🇿 +64" },
+  { iso: "SG", dialCode: "+65", label: "🇸🇬 +65" },
+  { iso: "TH", dialCode: "+66", label: "🇹🇭 +66" },
+  { iso: "JP", dialCode: "+81", label: "🇯🇵 +81" },
+  { iso: "KR", dialCode: "+82", label: "🇰🇷 +82" },
+  { iso: "VN", dialCode: "+84", label: "🇻🇳 +84" },
+  { iso: "CN", dialCode: "+86", label: "🇨🇳 +86" },
+  { iso: "TR", dialCode: "+90", label: "🇹🇷 +90" },
+  { iso: "PK", dialCode: "+92", label: "🇵🇰 +92" },
+  { iso: "AF", dialCode: "+93", label: "🇦🇫 +93" },
+  { iso: "LK", dialCode: "+94", label: "🇱🇰 +94" },
+  { iso: "MM", dialCode: "+95", label: "🇲🇲 +95" },
+  { iso: "IR", dialCode: "+98", label: "🇮🇷 +98" },
+  { iso: "MA", dialCode: "+212", label: "🇲🇦 +212" },
+  { iso: "DZ", dialCode: "+213", label: "🇩🇿 +213" },
+  { iso: "TN", dialCode: "+216", label: "🇹🇳 +216" },
+  { iso: "LY", dialCode: "+218", label: "🇱🇾 +218" },
+  { iso: "GM", dialCode: "+220", label: "🇬🇲 +220" },
+  { iso: "SN", dialCode: "+221", label: "🇸🇳 +221" },
+  { iso: "GH", dialCode: "+233", label: "🇬🇭 +233" },
+  { iso: "NG", dialCode: "+234", label: "🇳🇬 +234" },
+  { iso: "CD", dialCode: "+243", label: "🇨🇩 +243" },
+  { iso: "ET", dialCode: "+251", label: "🇪🇹 +251" },
+  { iso: "KE", dialCode: "+254", label: "🇰🇪 +254" },
+  { iso: "TZ", dialCode: "+255", label: "🇹🇿 +255" },
+  { iso: "UG", dialCode: "+256", label: "🇺🇬 +256" },
+  { iso: "ZM", dialCode: "+260", label: "🇿🇲 +260" },
+  { iso: "ZW", dialCode: "+263", label: "🇿🇼 +263" },
+  { iso: "PT", dialCode: "+351", label: "🇵🇹 +351" },
+  { iso: "LU", dialCode: "+352", label: "🇱🇺 +352" },
+  { iso: "IE", dialCode: "+353", label: "🇮🇪 +353" },
+  { iso: "IS", dialCode: "+354", label: "🇮🇸 +354" },
+  { iso: "AL", dialCode: "+355", label: "🇦🇱 +355" },
+  { iso: "CY", dialCode: "+357", label: "🇨🇾 +357" },
+  { iso: "FI", dialCode: "+358", label: "🇫🇮 +358" },
+  { iso: "BG", dialCode: "+359", label: "🇧🇬 +359" },
+  { iso: "LT", dialCode: "+370", label: "🇱🇹 +370" },
+  { iso: "LV", dialCode: "+371", label: "🇱🇻 +371" },
+  { iso: "EE", dialCode: "+372", label: "🇪🇪 +372" },
+  { iso: "UA", dialCode: "+380", label: "🇺🇦 +380" },
+  { iso: "HR", dialCode: "+385", label: "🇭🇷 +385" },
+  { iso: "SI", dialCode: "+386", label: "🇸🇮 +386" },
+  { iso: "BA", dialCode: "+387", label: "🇧🇦 +387" },
+  { iso: "CZ", dialCode: "+420", label: "🇨🇿 +420" },
+  { iso: "SK", dialCode: "+421", label: "🇸🇰 +421" },
+  { iso: "HK", dialCode: "+852", label: "🇭🇰 +852" },
+  { iso: "BD", dialCode: "+880", label: "🇧🇩 +880" },
+  { iso: "LB", dialCode: "+961", label: "🇱🇧 +961" },
+  { iso: "JO", dialCode: "+962", label: "🇯🇴 +962" },
+  { iso: "SY", dialCode: "+963", label: "🇸🇾 +963" },
+  { iso: "IQ", dialCode: "+964", label: "🇮🇶 +964" },
+  { iso: "KW", dialCode: "+965", label: "🇰🇼 +965" },
+  { iso: "SA", dialCode: "+966", label: "🇸🇦 +966" },
+  { iso: "YE", dialCode: "+967", label: "🇾🇪 +967" },
+  { iso: "OM", dialCode: "+968", label: "🇴🇲 +968" },
+  { iso: "PS", dialCode: "+970", label: "🇵🇸 +970" },
+  { iso: "AE", dialCode: "+971", label: "🇦🇪 +971" },
+  { iso: "IL", dialCode: "+972", label: "🇮🇱 +972" },
+  { iso: "BH", dialCode: "+973", label: "🇧🇭 +973" },
+  { iso: "QA", dialCode: "+974", label: "🇶🇦 +974" },
+  { iso: "BT", dialCode: "+975", label: "🇧🇹 +975" },
+  { iso: "MN", dialCode: "+976", label: "🇲🇳 +976" },
+  { iso: "NP", dialCode: "+977", label: "🇳🇵 +977" },
+  { iso: "TJ", dialCode: "+992", label: "🇹🇯 +992" },
+  { iso: "TM", dialCode: "+993", label: "🇹🇲 +993" },
+  { iso: "AZ", dialCode: "+994", label: "🇦🇿 +994" },
+  { iso: "GE", dialCode: "+995", label: "🇬🇪 +995" },
+  { iso: "KG", dialCode: "+996", label: "🇰🇬 +996" },
+  { iso: "UZ", dialCode: "+998", label: "🇺🇿 +998" },
 ];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -118,8 +118,7 @@ const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d).{6,}$/;
 
 export default function ClientVerifyPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<"signup" | "signin">("signup");
-  const [countryCode, setCountryCode] = useState("+91");
+  const [countryCode, setCountryCode] = useState("IN");
   const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -156,7 +155,6 @@ export default function ClientVerifyPage() {
       return;
     }
 
-    setMode("signup");
     setIsSubmitting(true);
 
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -165,7 +163,7 @@ export default function ClientVerifyPage() {
       `Create Account captured for ${companyName.trim()}. We will notify you when client onboarding opens.`
     );
     setIsSubmitting(false);
-    router.push("get-started/student/login");
+    router.push("/get-started/student/login");
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -195,8 +193,9 @@ export default function ClientVerifyPage() {
               <form onSubmit={handleSubmit} className="mt-8 space-y-5">
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium">Company Name</label>
+                    <label htmlFor="verify-company-name" className="block text-sm font-medium">Company Name</label>
                     <Input
+                      id="verify-company-name"
                       required
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
@@ -208,8 +207,9 @@ export default function ClientVerifyPage() {
                   <div className="hidden md:block" aria-hidden="true" />
 
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium">Email</label>
+                    <label htmlFor="verify-email" className="block text-sm font-medium">Email</label>
                     <Input
+                      id="verify-email"
                       required
                       type="email"
                       value={email}
@@ -220,27 +220,26 @@ export default function ClientVerifyPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-medium">
+                    <label htmlFor="verify-password" className="flex items-center gap-2 text-sm font-medium">
                       Password
                       <span className="text-[11px] font-normal text-black/45 whitespace-nowrap">
                         At least 6 characters, 1 uppercase, 1 number
                       </span>
                     </label>
                     <Input
+                      id="verify-password"
                       required
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       minLength={6}
-                      autoComplete={
-                        mode === "signin" ? "current-password" : "new-password"
-                      }
+                      autoComplete="new-password"
                       className="h-11 w-full rounded-2xl border-black/20 bg-white shadow-[-1px_2px_3px_rgba(0,0,0,0.1)]"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium">Phone Number</label>
+                    <label htmlFor="verify-phone" className="block text-sm font-medium">Phone Number</label>
                     <div className="flex h-11 rounded-2xl border border-black/20 bg-white overflow-hidden shadow-[-1px_2px_3px_rgba(0,0,0,0.1)]">
                       <Select value={countryCode} onValueChange={setCountryCode}>
                         <SelectTrigger className="h-11 w-auto min-w-[90px] border-none border-r border-black/20 bg-white text-black text-sm rounded-none focus:ring-0 focus:ring-offset-0 px-3">
@@ -248,13 +247,14 @@ export default function ClientVerifyPage() {
                         </SelectTrigger>
                         <SelectContent>
                           {COUNTRY_CODES.map((code) => (
-                            <SelectItem key={code.label} value={code.value}>
+                            <SelectItem key={code.iso} value={code.iso}>
                               {code.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       <input
+                        id="verify-phone"
                         type="tel"
                         required
                         value={phone}
@@ -284,7 +284,7 @@ export default function ClientVerifyPage() {
                         variant="outline"
                         disabled={isSubmitting}
                         onClick={() => {
-                          router.push("/get-started/student/login");
+                          toast.info("Client sign-in is coming soon!");
                         }}
                         className="h-10 w-full sm:w-[265px] rounded-2xl border-black/20 bg-white text-black shadow-[-1px_2px_3px_rgba(0,0,0,0.1)] hover:bg-black/5"
                       >

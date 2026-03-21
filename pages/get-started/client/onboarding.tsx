@@ -136,12 +136,7 @@ export default function ClientOnboardingPage() {
           <section className="mx-auto flex min-h-[72vh] w-full max-w-[1200px] flex-col items-center justify-center px-6 text-center">
             <div className="flex items-center gap-4">
               <h1
-                className="text-4xl tracking-tight text-black/90 sm:text-5xl"
-                style={{
-                  fontFamily: 'var(--font-the-seasons), "FONTSPRING DEMO - The Seasons", serif',
-                  fontWeight: 700,
-                  fontStyle: "normal",
-                }}
+                className="font-serif text-4xl font-bold tracking-tight text-black/90 sm:text-5xl"
               >
                 Your Hustlr Account Is Ready
               </h1>
@@ -153,7 +148,7 @@ export default function ClientOnboardingPage() {
             </div>
 
             <p className="mt-16 text-[1.7rem] font-semibold leading-tight text-[#58b7ba] sm:text-[1.95rem]">
-              Youre Ready to Post Your First Project
+              You&apos;re Ready to Post Your First Project
             </p>
             <p className="mt-4 whitespace-nowrap text-[1.35rem] font-semibold leading-tight text-black/85 sm:text-[1.5rem]">
               You can now post a project and discover top student talent matched to your requirements.
@@ -162,28 +157,22 @@ export default function ClientOnboardingPage() {
             <div className="mt-10 flex w-full max-w-xs flex-col gap-4">
               <Button
                 type="button"
-                onClick={() => router.push("/")}
-                className="h-11 rounded-2xl bg-black text-base text-white hover:bg-black/90"
-                style={{
-                  fontFamily:
-                    '"FONTSPRING DEMO - TT Commons Pro DemiBold", "TT Commons Pro", "Poppins", sans-serif',
-                  fontWeight: 600,
-                  fontStyle: "normal",
+                onClick={() => {
+                  toast.info("Project posting is coming soon!");
+                  router.push("/");
                 }}
+                className="h-11 rounded-2xl bg-black text-base font-semibold text-white hover:bg-black/90"
               >
                 Post My First Project
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push("/admin")}
-                className="h-11 rounded-2xl border-black/20 bg-transparent text-base text-black hover:bg-black/5"
-                style={{
-                  fontFamily:
-                    '"FONTSPRING DEMO - TT Commons Pro DemiBold", "TT Commons Pro", "Poppins", sans-serif',
-                  fontWeight: 600,
-                  fontStyle: "normal",
+                onClick={() => {
+                  toast.info("Client dashboard is coming soon!");
+                  router.push("/");
                 }}
+                className="h-11 rounded-2xl border-black/20 bg-transparent text-base font-semibold text-black hover:bg-black/5"
               >
                 Go To Dashboard
               </Button>
@@ -217,8 +206,9 @@ export default function ClientOnboardingPage() {
 
             <form onSubmit={onSubmit} className="mt-12 space-y-7">
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Company Name</label>
+                <label htmlFor="onboarding-company-name" className="block text-sm font-semibold">Company Name</label>
                 <Input
+                  id="onboarding-company-name"
                   required
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
@@ -227,8 +217,9 @@ export default function ClientOnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Company Website</label>
+                <label htmlFor="onboarding-website" className="block text-sm font-semibold">Company Website</label>
                 <Input
+                  id="onboarding-website"
                   required
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
@@ -237,8 +228,9 @@ export default function ClientOnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Company LinkedIn</label>
+                <label htmlFor="onboarding-linkedin" className="block text-sm font-semibold">Company LinkedIn</label>
                 <Input
+                  id="onboarding-linkedin"
                   required
                   value={linkedin}
                   onChange={(e) => setLinkedin(e.target.value)}
@@ -247,7 +239,7 @@ export default function ClientOnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Industry</label>
+                <label htmlFor="onboarding-industry" className="block text-sm font-semibold">Industry</label>
                 <div className="flex flex-col gap-3 md:flex-row md:items-center">
                   <Select value={industry} onValueChange={setIndustry}>
                     <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border-black/10 bg-[#eaeaea] text-sm text-black">
@@ -265,7 +257,7 @@ export default function ClientOnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Company Size</label>
+                <label htmlFor="onboarding-company-size" className="block text-sm font-semibold">Company Size</label>
                 <div className="flex flex-col gap-3 md:flex-row md:items-center">
                   <Select value={companySize} onValueChange={setCompanySize}>
                     <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border-black/10 bg-[#eaeaea] text-sm text-black">
@@ -283,7 +275,7 @@ export default function ClientOnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold">Country</label>
+                <label htmlFor="onboarding-country" className="block text-sm font-semibold">Country</label>
                 <Select value={country} onValueChange={setCountry}>
                   <SelectTrigger className="h-8 w-full md:w-[220px] rounded-md border-black/10 bg-[#eaeaea] text-sm text-black">
                     <SelectValue/>
@@ -300,10 +292,11 @@ export default function ClientOnboardingPage() {
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <label className="block text-sm font-semibold">Company Description</label>
+                  <label htmlFor="onboarding-description" className="block text-sm font-semibold">Company Description</label>
                   <span className="text-xs text-black/55">Word limit: 50</span>
                 </div>
                 <Textarea
+                  id="onboarding-description"
                   required
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
