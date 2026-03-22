@@ -177,6 +177,33 @@ export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: 
     [draft?.deliverables],
   );
 
+  const displayTimeline = useMemo(() => {
+    const t = draft?.timelineEstimate || "4 weeks";
+    
+    const yMatch = t.match(/([0-9\+]+)\s*Year/i);
+    const y = yMatch ? `${yMatch[1]} Year${yMatch[1] === "1" ? "" : "s"}` : "";
+    
+    const mMatch = t.match(/([0-9\+]+)\s*Month/i);
+    const m = mMatch ? `${mMatch[1]} Month${mMatch[1] === "1" ? "" : "s"}` : "";
+    
+    const wMatch = t.match(/([0-9\+]+)\s*Week/i);
+    const w = wMatch ? `${wMatch[1]} Week${wMatch[1] === "1" ? "" : "s"}` : "";
+    
+    if (!y && !m && !w) return t;
+
+    const upperParts = [y, m].filter(Boolean);
+    const weekPart = w;
+
+    if (upperParts.length > 0 && weekPart) {
+      return upperParts.join(", ") + "\n& " + weekPart;
+    } else if (upperParts.length > 0) {
+      return upperParts.join(" & ");
+    } else if (weekPart) {
+      return weekPart;
+    }
+    return t;
+  }, [draft?.timelineEstimate]);
+
   return (
     <>
       <Head>
@@ -215,14 +242,14 @@ export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: 
               <article className="mx-auto w-full max-w-[700px] rounded-[10px] bg-[#e9e9e9] p-8 font-ovo text-black">
                 <h2 className="text-center text-5xl text-black/90">{draft.title || "Untitled Project"}</h2>
 
-                <div className="mt-8 grid grid-cols-2 gap-6 text-center">
-                  <div>
-                    <p className="text-6xl leading-none">₹{formattedBudget}</p>
-                    <p className="text-5xl leading-tight">fixed price</p>
+                <div className="mt-8 grid grid-cols-2 gap-6 text-center text-black/90">
+                  <div className="flex flex-col items-center overflow-hidden">
+                    <p className="w-full text-2xl sm:text-3xl whitespace-nowrap leading-none">₹{formattedBudget}</p>
+                    <p className="text-lg sm:text-xl leading-tight text-black/60 mt-2">fixed price</p>
                   </div>
-                  <div>
-                    <p className="text-6xl leading-none">{draft.timelineEstimate || "4 weeks"}</p>
-                    <p className="text-5xl leading-tight">duration</p>
+                  <div className="flex flex-col items-center justify-center overflow-hidden">
+                    <p className="w-full text-2xl sm:text-3xl whitespace-pre-line leading-tight">{displayTimeline}</p>
+                    <p className="text-lg sm:text-xl leading-tight text-black/60 mt-2">duration</p>
                   </div>
                 </div>
 
@@ -242,12 +269,17 @@ export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: 
                   )}
                 </div>
 
-                <div className="mx-auto mt-6 flex w-[220px] overflow-hidden rounded-full bg-[#d6d6d6] font-sans text-xs font-semibold text-white">
+                <div className="mx-auto mt-8 relative flex w-[240px] rounded-full bg-[#d6d6d6] p-1 font-sans text-sm font-semibold shadow-inner">
+                  <div
+                    className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#9a9a9a] transition-transform duration-300 ease-out shadow-sm ${
+                      previewTab === "client" ? "translate-x-full" : "translate-x-0"
+                    }`}
+                  />
                   <button
                     type="button"
                     onClick={() => setPreviewTab("details")}
-                    className={`w-1/2 px-4 py-1 text-center transition-colors ${
-                      previewTab === "details" ? "bg-[#9a9a9a]" : "bg-transparent"
+                    className={`relative z-10 w-1/2 text-center transition-colors duration-200 py-1.5 ${
+                      previewTab === "details" ? "text-white" : "text-black/60 hover:text-black"
                     }`}
                   >
                     Details
@@ -255,8 +287,8 @@ export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: 
                   <button
                     type="button"
                     onClick={() => setPreviewTab("client")}
-                    className={`w-1/2 px-4 py-1 text-center transition-colors ${
-                      previewTab === "client" ? "bg-[#9a9a9a]" : "bg-transparent"
+                    className={`relative z-10 w-1/2 text-center transition-colors duration-200 py-1.5 ${
+                      previewTab === "client" ? "text-white" : "text-black/60 hover:text-black"
                     }`}
                   >
                     Client
