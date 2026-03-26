@@ -101,8 +101,8 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
     if (!experienceForm.company.trim()) errors.company = "Company is required";
     if (!experienceForm.description.trim()) {
       errors.description = "Description is required";
-    } else if (experienceForm.description.trim().split(/\s+/).filter(Boolean).length > 200) {
-      errors.description = "Description should not be more than 200 words";
+    } else if (experienceForm.description.trim().split(/\s+/).filter(Boolean).length > 500) {
+      errors.description = "Description should not be more than 500 words";
     }
     if (experienceForm.skills.length === 0) errors.skills = "Add at least one skill";
     if (!experienceForm.startMonth) errors.startMonth = "Start month is required";
@@ -257,8 +257,8 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
                       onChange={(e) => {
                         setExperienceForm(prev => ({ ...prev, description: e.target.value }));
                         const wordCount = e.target.value.trim().split(/\s+/).filter(Boolean).length;
-                        if (wordCount > 200) {
-                          setFormErrors(prev => ({ ...prev, description: "Description should not be more than 200 words" }));
+                        if (wordCount > 500) {
+                          setFormErrors(prev => ({ ...prev, description: "Description should not be more than 500 words" }));
                         } else {
                           setFormErrors(prev => { const { description, ...rest } = prev; return rest; });
                         }
@@ -270,8 +270,8 @@ export function ExperienceInput({ form }: { form: FormFieldProp }) {
                       className={cn("w-full min-h-[100px] resize-y whitespace-pre-wrap break-words", formErrors.description && "border-red-500")}
                       rows={4}
                     />
-                    <p className={cn("text-xs mt-1 text-right", experienceForm.description.trim().split(/\s+/).filter(Boolean).length > 200 ? "text-red-500" : "text-gray-400")}>
-                      {experienceForm.description.trim().split(/\s+/).filter(Boolean).length} / 200 words
+                    <p className={cn("text-xs mt-1 text-right", experienceForm.description.trim().split(/\s+/).filter(Boolean).length > 500 ? "text-red-500" : "text-gray-400")}>
+                      {experienceForm.description.trim().split(/\s+/).filter(Boolean).length} / 500 words
                     </p>
                     {formErrors.description && (
                       <p className="text-sm text-red-500 mt-1">{formErrors.description}</p>

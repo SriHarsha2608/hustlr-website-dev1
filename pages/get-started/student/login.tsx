@@ -1,251 +1,202 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { createClient } from "@/src/lib/supabase/auth/component";
-import { useRouter } from "next/router";
-import { useRef, useState } from "react";
-import { toast } from "sonner";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { motion, AnimatePresence } from "framer-motion";
+import Head from "next/head";
 import Image from "next/image";
+import { FormEvent, useRef, useState } from "react";
+import { useRouter } from "next/router";
 import Nav from "@/src/components/Nav";
-import { Separator } from "@/components/ui/separator";
-import { Loader, LogOut } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { createClient } from "@/src/lib/supabase/auth/component";
 import { verifyToken } from "@/src/lib/jwt";
 import { GetServerSideProps } from "next";
 import { parse } from "cookie";
+import type { JwtPayload } from "jsonwebtoken";
+import { Eye, EyeOff } from "lucide-react";
 
-const loginSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z
-    .string()
-    .min(6, { message: "Password must be at least 6 characters." }),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
-
-const slideFadeVariants = {
-  initial: { opacity: 0, x: 40 },
-  animate: { opacity: 1, x: 0, transition: { duration: 0.4 } },
-  exit: { opacity: 0, x: -40, transition: { duration: 0.3 } },
-};
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d).{6,}$/;
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const { req } = context;
-  const cookies = req.headers.cookie;
-
+  const cookies = context.req.headers.cookie;
   if (cookies) {
     const parsed = parse(cookies);
     const token = parsed.session;
-
     if (token) {
       try {
-        const payload = verifyToken(token);
-        if (typeof payload !== "string" && payload.email) {
-          // Valid JWT, redirect
+        const payload = verifyToken(token) as JwtPayload;
+        if (payload && typeof payload !== "string" && payload.email && payload.role === "user") {
           return {
-            props: { isAlreadyVerified: true, existingEmail: payload.email },
+            redirect: { destination: "/get-started/student/application", permanent: false },
           };
         }
       } catch {
-        console.log("no session token or invalid token: ");
+        // invalid token — fall through to render the page
       }
     }
   }
-
-  return {
-    props: { isAlreadyVerified: false, existingEmail: null }, // proceed to render the page normally
-  };
+  return { props: {} };
 };
 
-export default function LoginPage({
-  isAlreadyVerified,
-  existingEmail,
-}: {
-  isAlreadyVerified: boolean;
-  existingEmail?: string;
-}) {
+export default function StudentLoginPage() {
   const router = useRouter();
   const supabaseClient = createClient();
+  const inFlight = useRef(false);
 
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  });
-
-  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [step, setStep] = useState<"form" | "emailSent">("form");
-  const inFlightAuthRequest = useRef(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function beginAuthRequest(): boolean {
-    if (inFlightAuthRequest.current) return false;
-    inFlightAuthRequest.current = true;
-    setLoading(true);
-    return true;
-  }
-
-  function endAuthRequest() {
-    inFlightAuthRequest.current = false;
-    setLoading(false);
-  }
-
-  async function logIn(values: LoginFormValues) {
-    if (!beginAuthRequest()) return;
-    try {
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
-      });
-
-      console.log(data, error);
-
-      if (error) {
-        switch (error.code) {
-          case "invalid_credentials":
-            form.setError("email", { message: "Invalid email or password." });
-            form.setError("password", {
-              message: "Invalid email or password.",
-            });
-            toast.error("Invalid email or password.");
-            break;
-          case "user_not_found":
-            form.setError("email", {
-              message: "User not found. Please sign up.",
-            });
-            toast.error("User not found. Please sign up.");
-            break;
-          case "email_not_confirmed":
-            // Never auto-signup from login failures; just resend confirmation once.
-            const { error: resendError } = await supabaseClient.auth.resend({
-              type: "signup",
-              email: values.email,
-              options: {
-                emailRedirectTo: `${window.location.origin}/api/auth/confirm?next=${window.location.origin}/auth/confirmEmail`,
-              },
-            });
-
-            if (resendError) {
-              if (resendError.status === 429) {
-                toast.error(
-                  "Too many attempts. Please wait a minute and try again."
-                );
-              } else {
-                toast.error(resendError.message);
-              }
-            } else {
-              toast.success("Verification email sent. Please check your inbox.");
-              setStep("emailSent");
-            }
-            break;
-          default:
-            toast.error("An unexpected error occurred.");
-            break;
-        }
-        return;
-      }
-
-      if (!data.session?.access_token) {
-        toast.error("Unable to establish session. Please try again.");
-        return;
-      }
-
-      const res = await fetch("/api/auth/exchange", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ access_token: data.session.access_token }),
-      });
-
-      if (res.ok) {
-        toast.success("Logged in successfully!");
-
-        router.push("/get-started/student/application");
-      } else {
-        toast.error("Failed to login!");
-        router.push("/error");
-      }
-    } catch {
-      toast.error("Network error. Please try again.");
-    } finally {
-      endAuthRequest();
+  function validateForm(): string | null {
+    if (!email.trim()) return "Please enter your email.";
+    if (!EMAIL_REGEX.test(email.trim())) return "Please enter a valid email address.";
+    if (!password) return "Please enter your password.";
+    if (mode === "signup" && !PASSWORD_REGEX.test(password)) {
+      return "Password must be at least 6 characters with 1 uppercase letter and 1 number.";
     }
+    if (mode === "signin" && password.length < 6) {
+      return "Password must be at least 6 characters.";
+    }
+    return null;
   }
 
-  async function signUp(values: LoginFormValues) {
-    if (!beginAuthRequest()) return;
+  async function handleSignIn() {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
 
-    // TODO: check if user exists and handle that case
-    try {
-      const { data, error } = await supabaseClient.auth.signUp({
-        email: values.email,
-        password: values.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/api/auth/confirm?next=${window.location.origin}/auth/confirmEmail`,
-        },
-      });
-      console.log(data);
-      if (error) {
-        if (error.status === 429) {
-          form.setError("email", {
-            message:
-              "Too many signup attempts. Please wait 60 seconds and try again.",
+    if (error) {
+      switch (error.code) {
+        case "invalid_credentials":
+          toast.error("Invalid email or password.");
+          break;
+        case "email_not_confirmed": {
+          const { error: resendError } = await supabaseClient.auth.resend({
+            type: "signup",
+            email: email.trim(),
+            options: {
+              emailRedirectTo: `${window.location.origin}/api/auth/confirm?next=/auth/confirmEmail`,
+            },
           });
-          toast.error(
-            "Too many signup attempts. Please wait 60 seconds and try again."
-          );
-        } else {
-          form.setError("email", { message: error.message });
-          toast.error(error.message);
+          if (resendError) {
+            if (resendError.status === 429) {
+              toast.error("Too many attempts. Please wait a minute and try again.");
+            } else {
+              toast.error(resendError.message || "Failed to resend verification email.");
+            }
+          } else {
+            toast.success("Verification email sent! Check your inbox.");
+            setStep("emailSent");
+          }
+          break;
         }
-        return;
+        default:
+          toast.error(error.message || "Sign in failed. Please try again.");
       }
-      setStep("emailSent");
-    } catch {
-      toast.error("Network error. Please try again.");
-    } finally {
-      endAuthRequest();
+      return;
+    }
+
+    if (!data.session?.access_token) {
+      toast.error("Unable to establish session. Please try again.");
+      return;
+    }
+
+    const res = await fetch("/api/auth/exchange", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ access_token: data.session.access_token }),
+    });
+
+    if (res.ok) {
+      void router.push("/get-started/student/application");
+    } else {
+      toast.error("Failed to complete sign in. Please try again.");
     }
   }
 
-  if (isAlreadyVerified) {
+  async function handleSignUp() {
+    const { error } = await supabaseClient.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/api/auth/confirm?next=/auth/confirmEmail`,
+      },
+    });
+
+    if (error) {
+      if (error.status === 429) {
+        toast.error("Too many attempts. Please wait 60 seconds and try again.");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+
+    setStep("emailSent");
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (inFlight.current) return;
+
+    const validationError = validateForm();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    inFlight.current = true;
+    setIsSubmitting(true);
+
+    try {
+      if (mode === "signin") {
+        await handleSignIn();
+      } else {
+        await handleSignUp();
+      }
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      inFlight.current = false;
+      setIsSubmitting(false);
+    }
+  }
+
+  function switchMode(next: "signin" | "signup") {
+    setMode(next);
+    setStep("form");
+    setPassword("");
+    setShowPassword(false);
+  }
+
+  if (step === "emailSent") {
     return (
       <>
+        <Head>
+          <title>Check Your Email – Hustlr</title>
+        </Head>
         <Nav />
-        <main className="bg-white min-h-screen flex items-center justify-center flex-col space-y-6">
-          <h1 className="text-2xl font-bold">You are already logged in!</h1>
-          <p className="text-lg">
-            Welcome back <span className="font-semibold">{existingEmail}</span>
-          </p>
-
-          <div className="flex gap-4">
-            <button
-              onClick={() => router.push("/get-started/student/application/")}
-              className="font-sans bg-black text-white px-4 py-2 rounded focus:ring focus:ring-gray-600 hover:bg-black/80 transition-colors"
-            >
-              Proceed to Apply
-            </button>
-
-            <button
-              onClick={async () => {
-                await fetch("/api/auth/logout");
-                router.reload();
-              }}
-              className="font-sans flex items-center justify-center gap-2 bg-gray-200 text-black px-4 py-2 rounded focus:ring-2 focus:ring-gray-600/20 hover:bg-gray-300 transition-colors "
-            >
-              <LogOut className="size-5 rotate-180" />
-              Sign Out
-            </button>
+        <main className="min-h-screen bg-white flex items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-10 text-center font-sans shadow-md">
+            <h1 className="text-2xl font-semibold text-black">Check your inbox</h1>
+            <p className="mt-3 text-sm text-black/65 leading-relaxed">
+              We sent a confirmation link to <strong>{email}</strong>.
+              <br />
+              Click it to verify your account and continue.
+            </p>
+            <p className="mt-5 text-xs text-black/45">
+              Already confirmed?{" "}
+              <button
+                type="button"
+                className="text-black underline underline-offset-4"
+                onClick={() => switchMode("signin")}
+              >
+                Sign in
+              </button>
+            </p>
           </div>
         </main>
       </>
@@ -254,149 +205,132 @@ export default function LoginPage({
 
   return (
     <>
+      <Head>
+        <title>{mode === "signin" ? "Sign In" : "Create Account"} – Hustlr</title>
+      </Head>
       <Nav />
       <main className="flex min-h-screen relative bg-[#111] text-foreground">
-        {/* left */}
+        {/* left — form */}
         <div className="relative z-20 flex w-full md:w-1/2 items-center justify-center p-8 md:bg-white">
-          <div className="w-full max-w-sm bg-white rounded-lg shadow-md md:shadow-none p-6">
-            <AnimatePresence mode="wait">
-              {step === "form" ? (
-                <motion.div
-                  key="form"
-                  variants={slideFadeVariants}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                >
-                  <div className="font-sans">
-                    <h2 className="font-medium text-lg mb-3">
-                      Welcome back to hustlr!
-                    </h2>
-                    <p>
-                      Enter your credentials below to proceed, either create an
-                      account or signin
-                    </p>
-                  </div>
-                  <Separator className="my-6" />
-                  <Form {...form}>
-                    <form
-                      onSubmit={form.handleSubmit(logIn)}
-                      className="font-sans space-y-4 w-full"
-                    >
-                      <FormField
-                        control={form.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Email</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="email"
-                                autoComplete="email webauthn"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Password</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="password"
-                                minLength={6}
-                                autoComplete="current-password webauthn"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="flex gap-3">
-                        <Button
-                          type="submit"
-                          disabled={loading}
-                          className="w-full"
-                        >
-                          {loading ? (
-                            <Loader className="animate-spin size-10" />
-                          ) : (
-                            "Log in"
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={loading}
-                          onClick={form.handleSubmit(signUp)}
-                          className="w-full"
-                        >
-                          {loading ? (
-                            <Loader className="animate-spin size-10" />
-                          ) : (
-                            "Sign up"
-                          )}
-                        </Button>
-                      </div>
-                    </form>
-                  </Form>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="emailSent"
-                  variants={slideFadeVariants}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  className="font-sans space-y-4 text-center"
-                >
-                  <h2 className="text-xl font-bold">Check your inbox!</h2>
-                  <p className="text-gray-700">
-                    We have sent you a confirmation email. Please click the link
-                    to verify your account.
-                    <br />
-                    <br />
-                    <span className="text-start">
-                      <strong>NOTE:</strong> If you do not see the email, you may
-                      already have an account. Try logging in instead.
+          <div className="w-full max-w-sm bg-white rounded-lg shadow-md md:shadow-none p-6 font-sans">
+
+            {mode === "signin" ? (
+              <>
+                <h2 className="text-2xl font-semibold text-black">Welcome back</h2>
+                <p className="mt-1 text-sm text-black/55">
+                  Sign in to your Hustlr account
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-semibold text-black">Create your account</h2>
+                <p className="mt-1 text-sm text-black/55">
+                  Join Hustlr and start your journey
+                </p>
+              </>
+            )}
+
+            <form onSubmit={onSubmit} className="mt-7 space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="login-email" className="block text-sm font-medium text-black">
+                  Email
+                </label>
+                <Input
+                  id="login-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  className="h-11 rounded-xl border-black/20"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="login-password" className="flex items-center justify-between text-sm font-medium text-black">
+                  Password
+                  {mode === "signup" && (
+                    <span className="text-[11px] font-normal text-black/40">
+                      6+ chars, 1 uppercase, 1 number
                     </span>
-                  </p>
-                  <Button
-                    onClick={() => setStep("form")}
-                    variant="outline"
-                    className="mt-4"
+                  )}
+                </label>
+                <div className="relative">
+                  <Input
+                    id="login-password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    minLength={6}
+                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                    placeholder="••••••••"
+                    className="h-11 rounded-xl border-black/20 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/70"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    Back to login
-                  </Button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <Separator className="my-6" />
-            <p className="font-sans text-xs">
-              We keep your data safe. Read our{" "}
-              <a
-                href="/privacy"
-                target="_blank"
-                className="text-blue-600 hover:underline"
-                rel="noreferrer"
+                    {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="mt-2 h-11 w-full rounded-xl bg-black text-white hover:bg-black/85"
               >
+                {isSubmitting
+                  ? "Please wait…"
+                  : mode === "signin"
+                  ? "Sign In"
+                  : "Create Account"}
+              </Button>
+            </form>
+
+            <div className="mt-5 text-center text-sm text-black/50">
+              {mode === "signin" ? (
+                <>
+                  New to Hustlr?{" "}
+                  <button
+                    type="button"
+                    onClick={() => switchMode("signup")}
+                    className="font-medium text-black hover:underline underline-offset-4"
+                  >
+                    Create account
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => switchMode("signin")}
+                    className="font-medium text-black hover:underline underline-offset-4"
+                  >
+                    Sign in
+                  </button>
+                </>
+              )}
+            </div>
+
+            <p className="mt-6 text-xs text-black/30 text-center">
+              By continuing you agree to our{" "}
+              <a href="/privacy" className="underline underline-offset-2 hover:text-black/60">
                 Privacy Policy
               </a>
               .
             </p>
           </div>
         </div>
-        {/* right */}
 
+        {/* right — background image */}
         <div className="h-full w-full md:w-1/2 md:h-auto absolute md:relative md:block">
-          <div className="absolute z-10 inset-0 bg-gradient-to-bl from-black/60 to-black/90"></div>
-
+          <div className="absolute z-10 inset-0 bg-gradient-to-bl from-black/60 to-black/90" />
           <Image
             src="/images/loginbg.jpg"
             alt="Login background"
