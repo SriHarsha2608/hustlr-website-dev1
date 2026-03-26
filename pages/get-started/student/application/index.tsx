@@ -64,7 +64,7 @@ export const getServerSideProps: GetServerSideProps = async ({ req }) => {
           exists,
           vettingProgressResponse: {
             success: true,
-            data: { currentStage: 1, status: "not_completed" },
+            data: { currentStage: 1 },
           },
         },
       };
