@@ -6,7 +6,7 @@ import {
   Settings,
   LogOut,
   GitBranch,
-  ChevronDown,
+  MessageSquare,
   Home,
   Search,
   Bookmark,
@@ -186,6 +186,10 @@ function formatScore(score: number | null): string {
 /* Shadow — matches admin dashboard exactly */
 const CARD_SHADOW = "shadow-[-2px_4px_9px_rgba(0,0,0,0.40)]";
 
+function shortlistStorageKey(clientEmail: string, projectId: string) {
+  return `client-shortlist:${clientEmail}:${projectId}`;
+}
+
 /* ───────── Component ───────── */
 
 export default function ClientProjectPage({
@@ -207,7 +211,35 @@ export default function ClientProjectPage({
   const [expandedStudent, setExpandedStudent] = useState<StudentRow | null>(null);
   const [isShortlisting, setIsShortlisting] = useState(false);
   const [showShortlistConfirm, setShowShortlistConfirm] = useState(false);
-  const [chatsOpen, setChatsOpen] = useState(true); // Dropdown state for sidebar chats
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(
+        shortlistStorageKey(clientEmail, project.id)
+      );
+      if (!raw) {
+        setShortlistedEmails(new Set());
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setShortlistedEmails(new Set(parsed.filter((v) => typeof v === "string")));
+      } else {
+        setShortlistedEmails(new Set());
+      }
+    } catch {
+      setShortlistedEmails(new Set());
+    }
+  }, [clientEmail, project.id]);
+
+  const persistShortlistedEmails = (next: Set<string>) => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      shortlistStorageKey(clientEmail, project.id),
+      JSON.stringify(Array.from(next))
+    );
+  };
 
   /* Lock body scroll when modal is open */
   useEffect(() => {
@@ -218,6 +250,12 @@ export default function ClientProjectPage({
     }
     return () => { document.body.style.overflow = ""; };
   }, [expandedStudent, showShortlistConfirm]);
+
+  useEffect(() => {
+    void router.prefetch("/get-started/client/dashboard");
+    void router.prefetch("/get-started/client/job-post-review");
+    void router.prefetch(`/get-started/client/project/${project.id}/chat`);
+  }, [router, project.id]);
 
   const projectName = project.title || "Project Name";
 
@@ -262,9 +300,10 @@ export default function ClientProjectPage({
         />
       </Head>
 
-      <div className="flex min-h-screen bg-[#eaeaea] font-sans">
+      <div className="min-h-screen bg-[#eaeaea] p-2 font-sans">
+        <div className="flex min-h-[calc(100vh-1rem)] gap-2">
         {/* ────────── Sidebar ────────── */}
-        <aside className="flex w-[220px] shrink-0 flex-col justify-between border-r border-gray-200 bg-white px-5 py-6">
+        <aside className="flex w-[220px] shrink-0 flex-col justify-between rounded-2xl border border-gray-300 bg-white px-5 py-6">
           <div>
             {/* Branding */}
             <div className="mb-6 flex items-end gap-1">
@@ -330,48 +369,11 @@ export default function ClientProjectPage({
               Home
             </button>
 
-            <button
-              type="button"
-              onClick={() => setChatsOpen(!chatsOpen)}
-              className="mb-1 flex w-full items-center justify-between gap-1 rounded-lg bg-gray-900 px-3 py-2 text-left text-[12px] font-semibold text-white"
-            >
-              <span className="flex items-center gap-1.5 truncate">
-                <GitBranch className="h-3.5 w-3.5 shrink-0" />
-                Project:{" "}
-                {projectName.length > 12
-                  ? projectName.slice(0, 12) + "..."
-                  : projectName}
-              </span>
-              <ChevronDown className={`h-3.5 w-3.5 shrink-0 opacity-70 transition-transform ${chatsOpen ? '' : '-rotate-90'}`} />
-            </button>
-
-            {/* Sidebar Chat Dropdown (Shortlisted Students) */}
-            {chatsOpen && (
-              <div className="mb-4 pl-3 space-y-0.5">
-                <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Shortlisted Chats</p>
-                {students.filter(s => shortlistedEmails.has(s.email)).length > 0 ? (
-                  students.filter(s => shortlistedEmails.has(s.email)).map(s => (
-                    <button
-                      key={s.email}
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-[12px] font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-                    >
-                      <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                      <span className="truncate">{s.name}</span>
-                    </button>
-                  ))
-                ) : (
-                  <p className="px-3 py-1 text-[11px] italic text-gray-400">No chats yet</p>
-                )}
-              </div>
-            )}
-
-            {/* Other projects */}
+            {/* Projects */}
             <nav className="space-y-1">
-              {sidebarProjects
-                .filter((p) => p.id !== project.id)
-                .slice(0, 5)
-                .map((post) => (
+              {sidebarProjects.slice(0, 6).map((post) => {
+                const isActive = post.id === project.id;
+                return (
                   <button
                     key={post.id}
                     type="button"
@@ -380,14 +382,23 @@ export default function ClientProjectPage({
                         `/get-started/client/project/${post.id}`
                       )
                     }
-                    className="flex w-full items-center gap-2.5 rounded-lg bg-gray-900 px-3 py-2 text-left text-[12px] font-medium text-white transition-colors hover:bg-gray-800"
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12px] font-medium transition-colors ${
+                      isActive
+                        ? "bg-gray-900 text-white hover:bg-gray-800"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
                   >
-                    <GitBranch className="h-3.5 w-3.5 shrink-0 text-gray-300" />
+                    <GitBranch
+                      className={`h-3.5 w-3.5 shrink-0 ${
+                        isActive ? "text-gray-300" : "text-gray-400"
+                      }`}
+                    />
                     <span className="truncate">
                       Project: {post.title || "Untitled"}
                     </span>
                   </button>
-                ))}
+                );
+              })}
             </nav>
           </div>
 
@@ -415,7 +426,7 @@ export default function ClientProjectPage({
         </aside>
 
         {/* ────────── Main Content ────────── */}
-        <main className="flex-1 overflow-y-auto px-8 py-6">
+        <main className="flex-1 overflow-y-auto rounded-2xl bg-[#eaeaea] px-8 py-6">
           {/* Top row — breadcrumb + View Job Posting */}
           <div className="flex items-center justify-between">
             <p className="text-xs text-gray-500">
@@ -442,6 +453,19 @@ export default function ClientProjectPage({
               className="rounded-xl bg-[#57B1B2] px-5 py-2 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-[#4a9a9b]"
             >
               View Your Job Posting
+            </button>
+          </div>
+
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                void router.push(`/get-started/client/project/${project.id}/chat`)
+              }
+              className="flex items-center gap-2 rounded-xl bg-black px-5 py-2 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-gray-900"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Chat
             </button>
           </div>
 
@@ -670,6 +694,7 @@ export default function ClientProjectPage({
             </div>
           )}
         </main>
+        </div>
       </div>
 
       {/* ────────── Expanded Profile Modal ────────── */}
@@ -970,7 +995,11 @@ export default function ClientProjectPage({
                   
                   // Add to shortlistedEmails
                   if (expandedStudent) {
-                    setShortlistedEmails(prev => new Set(prev).add(expandedStudent.email));
+                    setShortlistedEmails((prev) => {
+                      const next = new Set(prev).add(expandedStudent.email);
+                      persistShortlistedEmails(next);
+                      return next;
+                    });
                   }
                   
                   setIsShortlisting(false);

@@ -10,9 +10,9 @@ function firstString(val: string | string[] | undefined): string | undefined {
 }
 
 function sanitizeNext(next: string | undefined): string {
-  if (!next) return "/get-started/client/onboarding";
+  if (!next) return "/get-started/client/dashboard";
   if (next.startsWith("//") || next.includes(":") || !next.startsWith("/")) {
-    return "/get-started/client/onboarding";
+    return "/get-started/client/dashboard";
   }
   return next;
 }

@@ -154,9 +154,10 @@ export default function ClientDashboardPage({
         />
       </Head>
 
-      <div className="flex min-h-screen bg-[#eaeaea] font-sans">
+      <div className="min-h-screen bg-[#eaeaea] p-2 font-sans">
+        <div className="flex min-h-[calc(100vh-1rem)] gap-2">
         {/* ────────── Sidebar ────────── */}
-        <aside className="flex w-[220px] shrink-0 flex-col justify-between border-r border-gray-200 bg-white px-5 py-6">
+        <aside className="flex w-[220px] shrink-0 flex-col justify-between rounded-2xl border border-gray-300 bg-white px-5 py-6">
           <div>
             {/* Branding */}
             <div className="mb-6 flex items-end gap-1">
@@ -273,14 +274,14 @@ export default function ClientDashboardPage({
         </aside>
 
         {/* ────────── Main Content ────────── */}
-        <main className="flex-1 overflow-y-auto px-8 py-6">
+        <main className="flex-1 overflow-y-auto rounded-2xl bg-[#eaeaea] px-8 py-6">
           {/* Breadcrumb + Post button */}
           <div className="flex items-center justify-between">
             <p className="text-[12px] text-gray-500">Home</p>
             <button
               type="button"
               onClick={() =>
-                void router.push("/get-started/client/onboarding")
+                void router.push("/get-started/client/job-post")
               }
               className={`flex items-center gap-1.5 rounded-full bg-gray-900 px-6 py-2.5 text-[13px] font-semibold text-white ${CARD_SHADOW} transition-all hover:bg-gray-800`}
             >
@@ -460,6 +461,7 @@ export default function ClientDashboardPage({
             </div>
           )}
         </main>
+        </div>
       </div>
     </>
   );
