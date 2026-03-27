@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { FormEvent, useState, useEffect } from "react";
+import { FormEvent, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import Nav from "@/src/components/Nav";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       redirect: { destination: "/get-started/client/verify", permanent: false },
     };
   }
+
   return { props: { clientEmail } };
 };
 
@@ -64,16 +65,24 @@ export default function ClientOnboardingPage({ clientEmail }: { clientEmail: str
   const [studentWorkReason, setStudentWorkReason] = useState("");
   const [viewState, setViewState] = useState<"form" | "loading" | "success">("form");
   const [isCompanyLocked, setIsCompanyLocked] = useState(false);
-  const supabaseClient = createClient();
+  const supabaseClientRef = useRef<ReturnType<typeof createClient> | null>(null);
+
+  function getSupabaseClient() {
+    if (!supabaseClientRef.current) {
+      supabaseClientRef.current = createClient();
+    }
+    return supabaseClientRef.current;
+  }
 
   useEffect(() => {
+    const supabaseClient = getSupabaseClient();
     supabaseClient.auth.getUser().then(({ data, error }) => {
       if (!error && data?.user?.user_metadata?.companyName) {
         setCompanyName(data.user.user_metadata.companyName);
         setIsCompanyLocked(true);
       }
     });
-  }, [supabaseClient]);
+  }, []);
 
   function validateOnboardingForm() {
     if (!companyName.trim()) return "Company Name is required.";

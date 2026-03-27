@@ -18,6 +18,7 @@ import { verifyToken } from "@/src/lib/jwt";
 import { GetServerSideProps } from "next";
 import { parse } from "cookie";
 import type { JwtPayload } from "jsonwebtoken";
+import { supabaseAdmin } from "@/src/lib/supabase-admin";
 
 const COUNTRY_CODES = [
   { iso: "IN", dialCode: "+91", label: "🇮🇳 +91" },
@@ -131,8 +132,19 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       try {
         const payload = verifyToken(token) as JwtPayload;
         if (payload && typeof payload !== "string" && payload.email && payload.role === "client") {
+          const { data: profile } = await supabaseAdmin
+            .from("client_profiles")
+            .select("email")
+            .eq("email", payload.email)
+            .maybeSingle();
+
           return {
-            redirect: { destination: "/get-started/client/onboarding", permanent: false },
+            redirect: {
+              destination: profile
+                ? "/get-started/client/dashboard"
+                : "/get-started/client/onboarding",
+              permanent: false,
+            },
           };
         }
       } catch {
@@ -145,8 +157,15 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
 export default function ClientVerifyPage() {
   const router = useRouter();
-  const supabaseClient = createClient();
   const inFlight = useRef(false);
+  const supabaseClientRef = useRef<ReturnType<typeof createClient> | null>(null);
+
+  function getSupabaseClient() {
+    if (!supabaseClientRef.current) {
+      supabaseClientRef.current = createClient();
+    }
+    return supabaseClientRef.current;
+  }
 
   const [step, setStep] = useState<"form" | "emailSent">("form");
   const [mode, setMode] = useState<"signup" | "signin">("signup");
@@ -174,6 +193,7 @@ export default function ClientVerifyPage() {
   }
 
   async function handleSignUp() {
+    const supabaseClient = getSupabaseClient();
     const selectedCode = COUNTRY_CODES.find((c) => c.iso === countryCode);
     const dialCode = selectedCode?.dialCode ?? "+91";
     const fullPhone = `${dialCode}${phone.trim()}`;
@@ -183,7 +203,7 @@ export default function ClientVerifyPage() {
       password,
       options: {
         data: { role: "client", companyName: companyName.trim(), phone: fullPhone },
-        emailRedirectTo: `${window.location.origin}/api/client/auth/confirm?next=/get-started/client/onboarding`,
+        emailRedirectTo: `${window.location.origin}/api/client/auth/confirm?next=/get-started/client/dashboard`,
       },
     });
 
@@ -202,6 +222,7 @@ export default function ClientVerifyPage() {
   }
 
   async function handleSignIn() {
+    const supabaseClient = getSupabaseClient();
     const { data, error } = await supabaseClient.auth.signInWithPassword({
       email: email.trim(),
       password,
@@ -218,7 +239,7 @@ export default function ClientVerifyPage() {
             type: "signup",
             email: email.trim(),
             options: {
-              emailRedirectTo: `${window.location.origin}/api/client/auth/confirm?next=/get-started/client/onboarding`,
+              emailRedirectTo: `${window.location.origin}/api/client/auth/confirm?next=/get-started/client/dashboard`,
             },
           });
           if (resendError) {
@@ -252,6 +273,15 @@ export default function ClientVerifyPage() {
 
     if (res.ok) {
       toast.success("Signed in successfully!");
+      try {
+        const profileRes = await fetch("/api/client/profile/get");
+        if (profileRes.ok) {
+          void router.push("/get-started/client/dashboard");
+          return;
+        }
+      } catch {
+        // fall through to onboarding when profile lookup fails
+      }
       void router.push("/get-started/client/onboarding");
     } else if (res.status === 403) {
       toast.error("Please verify your email before signing in. Check your inbox.");

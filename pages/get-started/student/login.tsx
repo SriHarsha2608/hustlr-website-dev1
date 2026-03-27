@@ -39,8 +39,15 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
 export default function StudentLoginPage() {
   const router = useRouter();
-  const supabaseClient = createClient();
   const inFlight = useRef(false);
+  const supabaseClientRef = useRef<ReturnType<typeof createClient> | null>(null);
+
+  function getSupabaseClient() {
+    if (!supabaseClientRef.current) {
+      supabaseClientRef.current = createClient();
+    }
+    return supabaseClientRef.current;
+  }
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [step, setStep] = useState<"form" | "emailSent">("form");
@@ -63,6 +70,7 @@ export default function StudentLoginPage() {
   }
 
   async function handleSignIn() {
+    const supabaseClient = getSupabaseClient();
     const { data, error } = await supabaseClient.auth.signInWithPassword({
       email: email.trim(),
       password,
@@ -118,6 +126,7 @@ export default function StudentLoginPage() {
   }
 
   async function handleSignUp() {
+    const supabaseClient = getSupabaseClient();
     const { error } = await supabaseClient.auth.signUp({
       email: email.trim(),
       password,

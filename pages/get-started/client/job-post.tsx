@@ -401,37 +401,11 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
   }, []);
 
   useEffect(() => {
-    const rawDraft = window.localStorage.getItem(JOB_POST_DRAFT_STORAGE_KEY);
-    if (!rawDraft) return;
-
+    // Opening the job post page should start with a clean form.
     try {
-      const parsed = JSON.parse(rawDraft) as Partial<JobPostDraft>;
-      if (typeof parsed.title === "string") setTitle(parsed.title);
-      if (typeof parsed.category === "string" && isValidProjectCategory(parsed.category)) {
-        setCategory(parsed.category);
-      }
-      if (typeof parsed.description === "string") setDescription(parsed.description);
-      if (typeof parsed.timelineEstimate === "string") {
-        const timeStr = parsed.timelineEstimate;
-        const yMatch = timeStr.match(/([0-9\+]+)\s*Year/i);
-        if (yMatch) setTimelineYears(yMatch[1]);
-        const mMatch = timeStr.match(/([0-9\+]+)\s*Month/i);
-        if (mMatch) setTimelineMonths(mMatch[1]);
-        const wMatch = timeStr.match(/([0-9\+]+)\s*Week/i);
-        if (wMatch) setTimelineWeeks(wMatch[1]);
-      }
-      if (typeof parsed.deliverables === "string") setDeliverables(parsed.deliverables);
-      if (typeof parsed.budget === "number") setBudget(parsed.budget);
-      if (Array.isArray(parsed.skills)) {
-        const validSkills = parsed.skills.filter(
-          (item): item is SkillItem =>
-            typeof item?.name === "string" &&
-            (item?.level === "Required" || item?.level === "Good to have"),
-        );
-        setSkills(validSkills);
-      }
+      window.localStorage.removeItem(JOB_POST_DRAFT_STORAGE_KEY);
     } catch {
-      // Keep defaults if parsing fails.
+      // ignore storage failures
     }
   }, []);
 
