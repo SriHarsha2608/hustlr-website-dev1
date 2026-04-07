@@ -187,8 +187,8 @@ export default function ClientProjectChatPage({
         />
       </Head>
 
-      <div className="min-h-screen bg-[#e9e9e9] p-2 font-sans">
-        <div className="flex min-h-[calc(100vh-1rem)] gap-2">
+      <div className="min-h-screen min-w-0 bg-[#e9e9e9] p-2 font-sans">
+        <div className="flex min-h-[calc(100vh-1rem)] min-w-0 gap-2">
           <aside className="flex w-[220px] shrink-0 flex-col justify-between rounded-2xl border border-gray-300 bg-white px-5 py-6">
             <div>
               <div className="mb-6 flex items-end gap-1">
@@ -250,13 +250,10 @@ export default function ClientProjectChatPage({
                 Home
               </button>
 
-              <div className="mb-3 flex w-full items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-left text-[12px] font-semibold text-white">
+              <div className="mb-3 flex w-full min-w-0 items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-left text-[12px] font-semibold text-white">
                 <GitBranch className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">
-                  Project:{" "}
-                  {projectName.length > 12
-                    ? `${projectName.slice(0, 12)}...`
-                    : projectName}
+                <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
+                  Project: {projectName}
                 </span>
               </div>
             </div>
@@ -283,9 +280,9 @@ export default function ClientProjectChatPage({
             </div>
           </aside>
 
-          <main className="flex-1 overflow-y-auto rounded-2xl bg-[#eaeaea] px-8 py-6">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">
+          <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-[#eaeaea] px-8 py-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <p className="min-w-0 max-w-full flex-1 text-xs text-gray-500 break-words [overflow-wrap:anywhere]">
                 <span
                   className="cursor-pointer hover:text-gray-700 transition-colors"
                   onClick={() => void router.push("/get-started/client/dashboard")}
@@ -302,7 +299,7 @@ export default function ClientProjectChatPage({
               <button
                 type="button"
                 onClick={() => void router.push("/get-started/client/job-post-review")}
-                className="rounded-2xl bg-[#57b1b2] px-8 py-3 text-[13px] font-semibold text-white shadow"
+                className="shrink-0 rounded-2xl bg-[#57b1b2] px-8 py-3 text-[13px] font-semibold text-white shadow"
               >
                 View Your Job Posting
               </button>
@@ -321,8 +318,8 @@ export default function ClientProjectChatPage({
 
             <h1 className="mt-4 text-[30px] font-bold text-black">Chat with Students</h1>
 
-            <section className="mt-3 flex h-[calc(100vh-210px)] rounded-2xl bg-[#f4f4f4]">
-              <div className="h-full w-[320px] shrink-0 border-r border-gray-300 bg-[#efefef]">
+            <section className="mt-3 flex min-w-0 h-[calc(100vh-210px)] rounded-2xl bg-[#f4f4f4]">
+              <div className="h-full w-[320px] min-w-0 max-w-[min(100%,320px)] shrink-0 border-r border-gray-300 bg-[#efefef]">
                 <div className="h-full overflow-y-auto">
                 {filteredShortlistedStudents.length === 0 ? (
                   <div className="px-6 py-7 text-[16px] text-gray-500">
@@ -340,13 +337,13 @@ export default function ClientProjectChatPage({
                         key={student.email}
                         type="button"
                         onClick={() => setSelectedEmail(student.email)}
-                        className={`w-full border-b border-gray-300 px-6 py-4 text-left transition-colors ${
+                        className={`w-full min-w-0 border-b border-gray-300 px-6 py-4 text-left transition-colors ${
                           active ? "bg-[#d0d0d0]" : "hover:bg-[#e0e0e0]"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[13px] font-semibold text-black">
+                        <div className="flex min-w-0 items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-semibold text-black break-words [overflow-wrap:anywhere]">
                               {student.name}, <span className="font-normal">{student.college || "College"}</span>
                             </p>
                           </div>
@@ -362,7 +359,7 @@ export default function ClientProjectChatPage({
                 </div>
               </div>
 
-              <div className="relative flex flex-1 flex-col px-8 py-6">
+              <div className="relative flex min-w-0 flex-1 flex-col px-4 py-6 sm:px-8">
                 <div className="flex items-center justify-between">
                   <button
                     type="button"
@@ -381,11 +378,11 @@ export default function ClientProjectChatPage({
                   </button>
                 </div>
 
-                <div className="mt-10 text-center">
-                  <h2 className="text-[44px] font-bold leading-tight text-black">
+                <div className="mt-10 min-w-0 text-center">
+                  <h2 className="mx-auto max-w-full text-[44px] font-bold leading-tight text-black break-words [overflow-wrap:anywhere]">
                     {selectedStudent?.name || "No student selected"}
                   </h2>
-                  <p className="text-[36px] text-[#202020]">
+                  <p className="mx-auto max-w-full text-[36px] text-[#202020] break-words [overflow-wrap:anywhere]">
                     {selectedStudent?.college || ""}
                   </p>
                   {selectedStudent && (
@@ -396,13 +393,13 @@ export default function ClientProjectChatPage({
                 </div>
 
                 <div className="mt-auto">
-                  <div className="flex items-center gap-3 rounded-xl border border-gray-400 bg-white px-4 py-2.5">
-                    <MessageCircle className="h-5 w-5 text-gray-500" />
+                  <div className="flex min-w-0 items-center gap-3 rounded-xl border border-gray-400 bg-white px-4 py-2.5">
+                    <MessageCircle className="h-5 w-5 shrink-0 text-gray-500" />
                     <input
                       value={messageDraft}
                       onChange={(e) => setMessageDraft(e.target.value)}
                       placeholder="Type a message..."
-                      className="h-8 w-full bg-transparent text-[15px] outline-none placeholder:text-gray-400"
+                      className="h-8 min-w-0 w-full bg-transparent text-[15px] outline-none placeholder:text-gray-400"
                     />
                   </div>
                 </div>

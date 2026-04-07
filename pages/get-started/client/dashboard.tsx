@@ -154,8 +154,8 @@ export default function ClientDashboardPage({
         />
       </Head>
 
-      <div className="min-h-screen bg-[#eaeaea] p-2 font-sans">
-        <div className="flex min-h-[calc(100vh-1rem)] gap-2">
+      <div className="min-h-screen min-w-0 bg-[#eaeaea] p-2 font-sans">
+        <div className="flex min-h-[calc(100vh-1rem)] min-w-0 gap-2">
         {/* ────────── Sidebar ────────── */}
         <aside className="flex w-[220px] shrink-0 flex-col justify-between rounded-2xl border border-gray-300 bg-white px-5 py-6">
           <div>
@@ -234,10 +234,10 @@ export default function ClientDashboardPage({
                       `/get-started/client/project/${post.id}`
                     )
                   }
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+                  className="flex w-full min-w-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
                 >
                   <GitBranch className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                  <span className="truncate">
+                  <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
                     Project: {post.title || "Untitled"}
                   </span>
                 </button>
@@ -274,14 +274,14 @@ export default function ClientDashboardPage({
         </aside>
 
         {/* ────────── Main Content ────────── */}
-        <main className="flex-1 overflow-y-auto rounded-2xl bg-[#eaeaea] px-8 py-6">
+        <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden rounded-2xl bg-[#eaeaea] px-8 py-6">
           {/* Breadcrumb + Post button */}
           <div className="flex items-center justify-between">
             <p className="text-[12px] text-gray-500">Home</p>
             <button
               type="button"
               onClick={() =>
-                void router.push("/get-started/client/job-post")
+                void router.push("/get-started/client/job-post?new=1")
               }
               className={`flex items-center gap-1.5 rounded-full bg-gray-900 px-6 py-2.5 text-[13px] font-semibold text-white ${CARD_SHADOW} transition-all hover:bg-gray-800`}
             >
@@ -297,7 +297,7 @@ export default function ClientDashboardPage({
 
           {/* Welcome — TT Commons / DM Sans fallback */}
           <h2
-            className="mt-5 text-[34px] font-medium italic tracking-tight text-[#5FB3B3]"
+            className="mt-5 max-w-full text-[34px] font-medium italic tracking-tight text-[#5FB3B3] break-words [overflow-wrap:anywhere]"
             style={{ fontFamily: "'TT Commons', 'DM Sans', sans-serif" }}
           >
             Welcome back, {companyName}
@@ -307,7 +307,7 @@ export default function ClientDashboardPage({
           </p>
 
           {/* ── Stats Row ── */}
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-6 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Total Projects */}
             <article
               className={`rounded-xl border border-gray-200 bg-white p-5 ${CARD_SHADOW}`}
@@ -386,7 +386,7 @@ export default function ClientDashboardPage({
               No active projects yet. Post your first project to get started.
             </p>
           ) : (
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {activeProjects.map((post) => {
                 const badge = statusBadge(post.status);
                 return (
@@ -397,19 +397,19 @@ export default function ClientDashboardPage({
                         `/get-started/client/project/${post.id}`
                       )
                     }
-                    className={`group cursor-pointer rounded-xl border border-gray-200 bg-white p-5 ${CARD_SHADOW} transition-shadow hover:shadow-[-3px_6px_14px_rgba(0,0,0,0.45)]`}
+                    className={`group min-w-0 cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white p-5 ${CARD_SHADOW} transition-shadow hover:shadow-[-3px_6px_14px_rgba(0,0,0,0.45)]`}
                   >
                     {/* Status badge */}
                     <div className="flex justify-end">
                       <span
-                        className={`rounded-full px-3 py-0.5 text-[10px] font-bold ${badge.bg} ${badge.text}`}
+                        className={`shrink-0 rounded-full px-3 py-0.5 text-[10px] font-bold ${badge.bg} ${badge.text}`}
                       >
                         {badge.label}
                       </span>
                     </div>
 
                     {/* Title */}
-                    <h4 className="mt-3 text-[15px] font-bold leading-snug text-gray-900">
+                    <h4 className="mt-3 max-w-full text-[15px] font-bold leading-snug text-gray-900 break-words [overflow-wrap:anywhere]">
                       {post.title || "Untitled Project"}
                     </h4>
 
@@ -431,24 +431,24 @@ export default function ClientDashboardPage({
               No drafts at the moment.
             </p>
           ) : (
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {draftProjects.map((post) => (
                 <article
                   key={post.id}
-                  className={`group cursor-pointer rounded-xl border border-gray-200 bg-white p-5 ${CARD_SHADOW} transition-shadow hover:shadow-[-3px_6px_14px_rgba(0,0,0,0.45)]`}
+                  className={`group min-w-0 cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white p-5 ${CARD_SHADOW} transition-shadow hover:shadow-[-3px_6px_14px_rgba(0,0,0,0.45)]`}
                   onClick={() =>
-                    void router.push("/get-started/client/job-post")
+                    void router.push("/get-started/client/job-post?resume=1")
                   }
                 >
                   {/* Draft badge */}
                   <div className="flex justify-end">
-                    <span className="rounded-full bg-[#c8c8a0] px-3 py-0.5 text-[10px] font-bold text-white">
+                    <span className="shrink-0 rounded-full bg-[#c8c8a0] px-3 py-0.5 text-[10px] font-bold text-white">
                       Draft
                     </span>
                   </div>
 
                   {/* Title */}
-                  <h4 className="mt-3 text-[15px] font-bold leading-snug text-gray-900">
+                  <h4 className="mt-3 max-w-full text-[15px] font-bold leading-snug text-gray-900 break-words [overflow-wrap:anywhere]">
                     {post.title || "-"}
                   </h4>
 

@@ -305,11 +305,55 @@ const TIMELINE_OPTIONS = [
   "More than 1 year"
 ];
 const BUDGET_MIN = 0;
-const BUDGET_MAX = 80000;
+/** Slider only — amounts above this can be typed in the number field. */
+const BUDGET_SLIDER_MAX = 80000;
 const BUDGET_STEP = 500;
 const PREVIEW_DELAY_MS = 1800;
 const PROJECT_SUBMITTED_REDIRECT_DELAY_MS = 2500;
 const MAX_SKILLS = 20;
+
+/** Inverse of saveDraftToStorage timeline string (handles "Year(s)", "Month(s)", "Week(s)", multiline). */
+function parseTimelineEstimate(estimate: string): {
+  years: string;
+  months: string;
+  weeks: string;
+} {
+  const flat = (estimate || "").replace(/\s+/g, " ").trim();
+
+  const yMatch = flat.match(/(5\+|\d+)\s+Years?/i);
+  let years = "0";
+  if (yMatch) {
+    const v = yMatch[1];
+    if (v === "5+") years = "5+";
+    else if (v === "5") years = "5+";
+    else if (/^[0-4]$/.test(v)) years = v;
+  }
+
+  const mMatch = flat.match(/(\d+)\s+Months?/i);
+  let months = "0";
+  if (mMatch) {
+    const n = parseInt(mMatch[1], 10);
+    if (!Number.isNaN(n) && n >= 0 && n <= 11) months = String(n);
+  }
+
+  const wMatch = flat.match(/(\d+)\s+Weeks?/i);
+  let weeks = "0";
+  if (wMatch) {
+    const n = parseInt(wMatch[1], 10);
+    if (!Number.isNaN(n) && n >= 0 && n <= 4) weeks = String(n);
+  }
+
+  return { years, months, weeks };
+}
+
+function normalizeJobPostSkills(raw: unknown): SkillItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (item): item is SkillItem =>
+      typeof item?.name === "string" &&
+      (item?.level === "Required" || item?.level === "Good to have"),
+  );
+}
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const clientEmail = getClientEmailFromSSP(context);
@@ -386,6 +430,7 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
   const [skillSearchQueries, setSkillSearchQueries] = useState<Record<number, string>>({});
   const [skills, setSkills] = useState<SkillItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingDraft, setIsLoadingDraft] = useState(true);
   const routeTimerRef = useRef<number | null>(null);
   const submittedTimerRef = useRef<number | null>(null);
 
@@ -401,13 +446,128 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
   }, []);
 
   useEffect(() => {
-    // Opening the job post page should start with a clean form.
-    try {
-      window.localStorage.removeItem(JOB_POST_DRAFT_STORAGE_KEY);
-    } catch {
-      // ignore storage failures
+    if (!router.isReady) return;
+
+    const q = router.query;
+    const wantNewDraft =
+      q.new === "1" || (Array.isArray(q.new) && q.new[0] === "1");
+    const fromReview =
+      q.from === "review" ||
+      (Array.isArray(q.from) && q.from[0] === "review");
+    const resumeDraft =
+      q.resume === "1" ||
+      (Array.isArray(q.resume) && q.resume[0] === "1");
+    const shouldHydrate = fromReview || resumeDraft;
+
+    function resetToFreshForm() {
+      try {
+        window.localStorage.removeItem(JOB_POST_DRAFT_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+      setTitle("");
+      setCategory("");
+      setDescription("");
+      setTimelineYears("0");
+      setTimelineMonths("0");
+      setTimelineWeeks("0");
+      setDeliverables("");
+      setBudget(20000);
+      setSkills([]);
+      setOpenSkillPopovers({});
+      setSkillSearchQueries({});
+      setStep(1);
+      setIsLoadingDraft(false);
     }
-  }, []);
+
+    // Explicit new, or any entry that is not Edit-from-review / resume-draft
+    if (wantNewDraft || !shouldHydrate) {
+      resetToFreshForm();
+      return;
+    }
+
+    let cancelled = false;
+
+    function applyDraftFromJobPostShape(d: JobPostDraft) {
+      setTitle(typeof d.title === "string" ? d.title : "");
+      const cat = typeof d.category === "string" ? d.category : "";
+      setCategory(isValidProjectCategory(cat) ? cat : "");
+      setDescription(typeof d.description === "string" ? d.description : "");
+      setDeliverables(typeof d.deliverables === "string" ? d.deliverables : "");
+      const b = typeof d.budget === "number" && Number.isFinite(d.budget) ? d.budget : 0;
+      setBudget(Math.max(BUDGET_MIN, b));
+      const { years, months, weeks } = parseTimelineEstimate(
+        typeof d.timelineEstimate === "string" ? d.timelineEstimate : "",
+      );
+      setTimelineYears(years);
+      setTimelineMonths(months);
+      setTimelineWeeks(weeks);
+      setSkills(normalizeJobPostSkills(d.skills));
+      setOpenSkillPopovers({});
+      setSkillSearchQueries({});
+      // Always land on step 1 ("Post Your First Project"); step 2 fields stay prefilled when they continue.
+      setStep(1);
+    }
+
+    async function loadDraft() {
+      try {
+        const res = await fetch("/api/client/job-post/get");
+        if (res.ok) {
+          const body = (await res.json()) as { draft: JobPostDraft | null };
+          if (!cancelled && body.draft) {
+            applyDraftFromJobPostShape(body.draft);
+            try {
+              window.localStorage.setItem(
+                JOB_POST_DRAFT_STORAGE_KEY,
+                JSON.stringify(body.draft),
+              );
+            } catch {
+              // non-critical
+            }
+            return;
+          }
+        }
+      } catch {
+        // fall through to localStorage
+      }
+
+      const rawDraft = window.localStorage.getItem(JOB_POST_DRAFT_STORAGE_KEY);
+      if (rawDraft && !cancelled) {
+        try {
+          const parsed = JSON.parse(rawDraft) as Partial<JobPostDraft>;
+          if (
+            typeof parsed.title === "string" &&
+            typeof parsed.category === "string" &&
+            typeof parsed.description === "string" &&
+            typeof parsed.timelineEstimate === "string" &&
+            typeof parsed.deliverables === "string" &&
+            typeof parsed.budget === "number" &&
+            Array.isArray(parsed.skills)
+          ) {
+            applyDraftFromJobPostShape({
+              title: parsed.title,
+              category: parsed.category,
+              description: parsed.description,
+              timelineEstimate: parsed.timelineEstimate,
+              deliverables: parsed.deliverables,
+              budget: parsed.budget,
+              skills: normalizeJobPostSkills(parsed.skills),
+            });
+          }
+        } catch {
+          // keep defaults
+        }
+      }
+    }
+
+    void loadDraft().finally(() => {
+      if (!cancelled) setIsLoadingDraft(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router.isReady, router.query.new, router.query.from, router.query.resume]);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -663,7 +823,16 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
           </section>
         )}
 
-        {view === "form" && (
+        {view === "form" && isLoadingDraft && (
+          <section className="mx-auto flex min-h-[50vh] w-full max-w-6xl items-center justify-center px-6 py-16 sm:px-10 md:px-14 lg:px-20">
+            <div className="flex flex-col items-center gap-3 text-center font-sans text-black/70">
+              <Loader className="h-10 w-10 animate-spin" />
+              <p className="text-sm font-medium">Loading your project draft…</p>
+            </div>
+          </section>
+        )}
+
+        {view === "form" && !isLoadingDraft && (
         <section className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10 md:px-14 lg:px-20">
           <div
             className={`grid grid-cols-1 gap-10 ${
@@ -963,13 +1132,18 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
                             <input
                               type="range"
                               min={BUDGET_MIN}
-                              max={BUDGET_MAX}
+                              max={BUDGET_SLIDER_MAX}
                               step={BUDGET_STEP}
-                              value={budget}
+                              value={Math.min(Math.max(budget, BUDGET_MIN), BUDGET_SLIDER_MAX)}
                               onChange={(e) => setBudget(Number(e.target.value))}
                               className="h-2.5 w-full cursor-pointer appearance-none rounded-full outline-none transition-all [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-[#5FB3B3] [&::-moz-range-thumb]:shadow-md [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#5FB3B3] [&::-webkit-slider-thumb]:shadow-[0_2px_4px_rgba(0,0,0,0.2)] hover:[&::-webkit-slider-thumb]:scale-110 active:[&::-webkit-slider-thumb]:scale-95"
                               style={{
-                                background: `linear-gradient(to right, #5FB3B3 ${((budget - BUDGET_MIN) / (BUDGET_MAX - BUDGET_MIN)) * 100}%, #e5e7eb ${((budget - BUDGET_MIN) / (BUDGET_MAX - BUDGET_MIN)) * 100}%)`,
+                                background: (() => {
+                                  const v = Math.min(Math.max(budget, BUDGET_MIN), BUDGET_SLIDER_MAX);
+                                  const pct =
+                                    ((v - BUDGET_MIN) / (BUDGET_SLIDER_MAX - BUDGET_MIN)) * 100;
+                                  return `linear-gradient(to right, #5FB3B3 ${pct}%, #e5e7eb ${pct}%)`;
+                                })(),
                               }}
                             />
                           </div>
@@ -984,16 +1158,19 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
                             <input
                               type="number"
                               min={BUDGET_MIN}
-                              max={BUDGET_MAX}
                               value={budget || ""}
                               onChange={(e) => {
-                                const val = parseInt(e.target.value, 10);
-                                setBudget(isNaN(val) ? 0 : val);
+                                const raw = e.target.value;
+                                if (raw === "") {
+                                  setBudget(0);
+                                  return;
+                                }
+                                const val = parseInt(raw, 10);
+                                setBudget(Number.isNaN(val) ? 0 : val);
                               }}
                               onBlur={(e) => {
                                 const val = parseInt(e.target.value, 10);
-                                if (isNaN(val) || val < BUDGET_MIN) setBudget(BUDGET_MIN);
-                                else if (val > BUDGET_MAX) setBudget(BUDGET_MAX);
+                                if (Number.isNaN(val) || val < BUDGET_MIN) setBudget(BUDGET_MIN);
                               }}
                               className="w-full bg-transparent p-0 text-center font-sans text-2xl font-bold text-black outline-none outline-transparent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
