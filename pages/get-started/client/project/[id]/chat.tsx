@@ -301,7 +301,7 @@ export default function ClientProjectChatPage({
 
               <button
                 type="button"
-                onClick={() => void router.push("/get-started/client/job-post-review")}
+                onClick={() => void router.push(`/get-started/client/job-post-review?id=${project.id}`)}
                 className="rounded-2xl bg-[#57b1b2] px-8 py-3 text-[13px] font-semibold text-white shadow"
               >
                 View Your Job Posting

@@ -185,6 +185,119 @@ function formatScore(score: number | null): string {
   return `${Math.round(score)}%`;
 }
 
+function normalizeSkillName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "").trim();
+}
+
+function getProjectRequiredSkills(project: JobPost): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  for (const skill of Array.isArray(project.skills) ? project.skills : []) {
+    const name = typeof skill?.name === "string" ? skill.name.trim() : "";
+    if (!name) continue;
+    const key = normalizeSkillName(name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+
+  return out;
+}
+
+function getCandidateSkillNames(student: StudentRow): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  const addSkill = (value: string | undefined | null) => {
+    const name = typeof value === "string" ? value.trim() : "";
+    if (!name) return;
+    const key = normalizeSkillName(name);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(name);
+  };
+
+  for (const skill of Array.isArray(student.skills) ? student.skills : []) {
+    if (typeof skill === "string") {
+      addSkill(skill);
+    } else {
+      addSkill(skill?.skill);
+    }
+  }
+
+  for (const exp of Array.isArray(student.experiences) ? student.experiences : []) {
+    for (const skill of Array.isArray(exp.skills) ? exp.skills : []) {
+      addSkill(skill);
+    }
+  }
+
+  for (const proj of Array.isArray(student.projects) ? student.projects : []) {
+    for (const skill of Array.isArray(proj.techStack) ? proj.techStack : []) {
+      addSkill(skill);
+    }
+  }
+
+  for (const hack of Array.isArray(student.hackathons) ? student.hackathons : []) {
+    for (const skill of Array.isArray(hack.techStack) ? hack.techStack : []) {
+      addSkill(skill);
+    }
+  }
+
+  return out;
+}
+
+function getSkillMatch(student: StudentRow, requiredSkills: string[]) {
+  const requiredSet = new Set(requiredSkills.map((s) => normalizeSkillName(s)).filter(Boolean));
+  if (!requiredSet.size) {
+    return { matchedCount: 0, totalCount: 0, matchedSkills: [] as string[] };
+  }
+
+  const candidateSkills = getCandidateSkillNames(student);
+  const matchedSkills = candidateSkills.filter((skill) =>
+    requiredSet.has(normalizeSkillName(skill)),
+  );
+
+  return {
+    matchedCount: matchedSkills.length,
+    totalCount: requiredSet.size,
+    matchedSkills,
+  };
+}
+
+function hasSimilarProjectExperience(
+  student: StudentRow,
+  requiredSkills: string[],
+  thresholdPercent = 75,
+) {
+  const requiredSet = new Set(requiredSkills.map((s) => normalizeSkillName(s)).filter(Boolean));
+  if (!requiredSet.size) return false;
+
+  const projects = Array.isArray(student.projects) ? student.projects : [];
+  if (!projects.length) return false;
+
+  for (const proj of projects) {
+    const techStack = Array.isArray(proj.techStack) ? proj.techStack : [];
+    const projectSkillSet = new Set(
+      techStack.map((s) => normalizeSkillName(s)).filter(Boolean),
+    );
+
+    if (!projectSkillSet.size) continue;
+
+    let matched = 0;
+    for (const required of requiredSet) {
+      if (projectSkillSet.has(required)) matched += 1;
+    }
+
+    const matchPercent = (matched / requiredSet.size) * 100;
+    if (matchPercent >= thresholdPercent) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /* Shadow — matches admin dashboard exactly */
 const CARD_SHADOW = "shadow-[-2px_4px_9px_rgba(0,0,0,0.40)]";
 
@@ -293,6 +406,16 @@ export default function ClientProjectPage({
   }, [router, project.id]);
 
   const projectName = project.title || "Project Name";
+  const requiredSkillNames = getProjectRequiredSkills(project);
+  const expandedCandidateSkills = expandedStudent
+    ? getCandidateSkillNames(expandedStudent)
+    : [];
+  const expandedSkillMatch = expandedStudent
+    ? getSkillMatch(expandedStudent, requiredSkillNames)
+    : null;
+  const expandedMatchedSkillSet = new Set(
+    (expandedSkillMatch?.matchedSkills || []).map((skill) => normalizeSkillName(skill)),
+  );
 
   /* Filter students by tab */
   const displayStudents =
@@ -484,7 +607,7 @@ export default function ClientProjectPage({
             <button
               type="button"
               onClick={() =>
-                void router.push("/get-started/client/job-post-review")
+                void router.push(`/get-started/client/job-post-review?id=${project.id}`)
               }
               className="rounded-xl bg-[#57B1B2] px-5 py-2 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-[#4a9a9b]"
             >
@@ -566,6 +689,12 @@ export default function ClientProjectPage({
                 : [];
               const hasProjects =
                 Array.isArray(student.projects) && student.projects.length > 0;
+              const skillMatch = getSkillMatch(student, requiredSkillNames);
+              const similarProjectExperience = hasSimilarProjectExperience(
+                student,
+                requiredSkillNames,
+                75,
+              );
 
               return (
                 <article
@@ -666,7 +795,9 @@ export default function ClientProjectPage({
                     <div className="mt-4 space-y-1 text-[12px] text-gray-700">
                       <p>
                         <span className="font-bold">Skill Match:</span>{" "}
-                        {formatScore(student.final_score)}
+                        {skillMatch.totalCount > 0
+                          ? `${skillMatch.matchedCount}/${skillMatch.totalCount} matched`
+                          : "No required skills listed"}
                       </p>
                       <p>
                         <span className="font-bold">
@@ -674,10 +805,10 @@ export default function ClientProjectPage({
                         </span>{" "}
                         <span
                           className={
-                            hasProjects ? "text-[#5FB3B3]" : "text-gray-500"
+                            similarProjectExperience ? "text-[#5FB3B3]" : "text-gray-500"
                           }
                         >
-                          {hasProjects ? "Yes" : "No"}
+                          {similarProjectExperience ? "Yes" : "No"}
                         </span>
                       </p>
                       <p>
@@ -799,21 +930,28 @@ export default function ClientProjectPage({
                 </div>
 
                 {/* All skills summary */}
-                {Array.isArray(expandedStudent.skills) && expandedStudent.skills.length > 0 && (
+                {expandedCandidateSkills.length > 0 && (
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {expandedStudent.skills.map((s, i) => {
-                      const skillName = typeof s === "string" ? s : s?.skill || "Skill";
+                    {expandedCandidateSkills.map((skillName, i) => {
+                      const isMatched = expandedMatchedSkillSet.has(normalizeSkillName(skillName));
                       return (
                         <span
                           key={i}
                           className="rounded-full px-3 py-0.5 text-[11px] font-bold text-[#3d8a8c]"
-                          style={{ backgroundColor: "#DFF0F0" }}
+                          style={{ backgroundColor: isMatched ? "#C7DA8E" : "#DFF0F0" }}
+                          title={isMatched ? "Matches project requirement" : "Candidate skill"}
                         >
                           {skillName}
                         </span>
                       );
                     })}
                   </div>
+                )}
+
+                {expandedSkillMatch && expandedSkillMatch.totalCount > 0 && (
+                  <p className="mt-3 text-[13px] font-semibold text-gray-700">
+                    Skill Match: {expandedSkillMatch.matchedCount}/{expandedSkillMatch.totalCount} matched
+                  </p>
                 )}
               </div>
             </div>

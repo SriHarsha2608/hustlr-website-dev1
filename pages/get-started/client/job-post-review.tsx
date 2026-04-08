@@ -52,17 +52,32 @@ export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: 
   const router = useRouter();
   const [previewTab, setPreviewTab] = useState<"details" | "client">("details");
   const [draft, setDraft] = useState<JobPostDraft | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(null);
   const [clientProfile, setClientProfile] = useState<ClientProfile>(DEFAULT_CLIENT_PROFILE);
   const [isPosting, setIsPosting] = useState(false);
 
   // Load draft — try DB first, fall back to localStorage
   useEffect(() => {
+    if (!router.isReady) return;
+
     async function loadDraft() {
+      const requestedId =
+        typeof router.query.id === "string" && router.query.id.trim().length > 0
+          ? router.query.id.trim()
+          : "";
+
       try {
-        const res = await fetch("/api/client/job-post/get");
+        const res = await fetch(
+          requestedId
+            ? `/api/client/job-post/get?id=${encodeURIComponent(requestedId)}`
+            : "/api/client/job-post/get",
+        );
         if (res.ok) {
           const { draft: dbDraft } = await res.json();
           if (dbDraft) {
+            if (typeof dbDraft.id === "string") {
+              setDraftId(dbDraft.id);
+            }
             setDraft(dbDraft as JobPostDraft);
             return;
           }
@@ -106,7 +121,7 @@ export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: 
     }
 
     void loadDraft();
-  }, []);
+  }, [router.isReady, router.query.id]);
 
   // Load client profile — try DB first, fall back to localStorage
   useEffect(() => {
@@ -145,7 +160,7 @@ export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: 
       const res = await fetch("/api/client/job-post/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...draft, email: clientEmail, status: "published" }),
+        body: JSON.stringify({ ...draft, id: draftId, email: clientEmail, status: "published" }),
       });
 
       if (!res.ok) {
@@ -371,7 +386,10 @@ export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: 
                 <Button
                   type="button"
                   onClick={() => {
-                    void router.push("/get-started/client/job-post");
+                    const target = draftId
+                      ? `/get-started/client/job-post?mode=edit&id=${encodeURIComponent(draftId)}`
+                      : "/get-started/client/job-post?mode=edit";
+                    void router.push(target);
                   }}
                   className="h-10 rounded-lg bg-[#a9a9a9] text-sm font-semibold text-white hover:bg-[#969696]"
                 >

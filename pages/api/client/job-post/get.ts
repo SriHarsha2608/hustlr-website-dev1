@@ -13,15 +13,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Return the most recent draft or published post for this client
-    const { data, error } = await supabaseAdmin
+    const requestedId =
+      typeof req.query.id === "string" && req.query.id.trim().length > 0
+        ? req.query.id.trim()
+        : null;
+
+    let query = supabaseAdmin
       .from("job_posts")
       .select("*")
       .eq("client_email", email)
-      .in("status", ["draft", "published"])
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .in("status", ["draft", "published", "closed"]);
+
+    if (requestedId) {
+      query = query.eq("id", requestedId);
+    } else {
+      query = query.order("updated_at", { ascending: false }).limit(1);
+    }
+
+    const { data, error } = await query.maybeSingle();
 
     if (error) {
       console.error("[client/job-post/get] db error:", error);
@@ -34,6 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({
       draft: {
+        id: data.id,
         title: data.title,
         category: data.category,
         description: data.description,

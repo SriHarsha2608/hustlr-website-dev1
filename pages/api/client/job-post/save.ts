@@ -16,6 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
 
     const {
+      id,
       title,
       category,
       description,
@@ -32,6 +33,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const resolvedStatus =
       status === "published" || status === "closed" ? status : "draft";
+
+    const requestedId = typeof id === "string" && id.trim().length > 0 ? id.trim() : null;
+
+    if (requestedId) {
+      const { data: existingById, error: fetchByIdError } = await supabaseAdmin
+        .from("job_posts")
+        .select("id")
+        .eq("id", requestedId)
+        .eq("client_email", email)
+        .maybeSingle();
+
+      if (fetchByIdError) {
+        console.error("[client/job-post/save] fetch-by-id error:", fetchByIdError);
+        return res.status(500).json({ error: "Failed to save job post" });
+      }
+
+      if (!existingById?.id) {
+        return res.status(404).json({ error: "Job post not found" });
+      }
+
+      const { error: updateByIdError } = await supabaseAdmin
+        .from("job_posts")
+        .update({
+          title: title.trim(),
+          category: category.trim(),
+          description: description.trim(),
+          timeline_estimate: timelineEstimate?.trim() ?? null,
+          deliverables: deliverables?.trim() ?? null,
+          budget: typeof budget === "number" ? budget : null,
+          skills: Array.isArray(skills) ? skills : [],
+          status: resolvedStatus,
+        })
+        .eq("id", requestedId)
+        .eq("client_email", email);
+
+      if (updateByIdError) {
+        console.error("[client/job-post/save] update-by-id error:", updateByIdError);
+        return res.status(500).json({ error: "Failed to save job post" });
+      }
+
+      return res.status(200).json({ ok: true, id: requestedId });
+    }
 
     // Check for an existing draft by this client so we update rather than create duplicates
     const { data: existing } = await supabaseAdmin

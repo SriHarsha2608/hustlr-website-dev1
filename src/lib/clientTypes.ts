@@ -6,6 +6,7 @@ export type SkillItem = {
 };
 
 export type JobPostDraft = {
+  id?: string;
   title: string;
   category: string;
   description: string;
