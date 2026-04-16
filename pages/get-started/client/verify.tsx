@@ -181,14 +181,20 @@ export default function ClientVerifyPage() {
     if (!email.trim()) return "Please enter your email.";
     if (!EMAIL_REGEX.test(email.trim())) return "Please enter a valid email address.";
     if (!password) return "Please enter your password.";
-    if (!PASSWORD_REGEX.test(password)) {
-      return "Password must be at least 6 characters with 1 uppercase letter and 1 number.";
-    }
     if (mode === "signup") {
+      if (!PASSWORD_REGEX.test(password)) {
+        return "Password must be at least 6 characters with 1 uppercase letter and 1 number.";
+      }
       if (!companyName.trim()) return "Please enter your company name.";
       const digits = phone.replace(/\D/g, "");
       if (digits.length < 6 || digits.length > 15) return "Please enter a valid phone number.";
+      return null;
     }
+
+    if (password.length < 6) {
+      return "Password must be at least 6 characters.";
+    }
+
     return null;
   }
 

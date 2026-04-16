@@ -3,10 +3,8 @@ import { createAdminToken } from "@/src/lib/jwt";
 import { firebaseAdminAuth } from "@/src/lib/firebase-admin";
 import { serialize } from "cookie";
 
-const ADMIN_EMAIL = (
-  process.env.ADMIN_EMAIL || "admin@hustlr.local"
-).toLowerCase();
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "hustlr-admin-2026";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase() ?? "";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 
 function setAdminSessionCookie(res: NextApiResponse, email: string) {
   const token = createAdminToken(email);
@@ -20,6 +18,16 @@ function setAdminSessionCookie(res: NextApiResponse, email: string) {
       sameSite: "lax",
     })
   );
+}
+
+function respondWithMisconfiguredAdminLogin(
+  res: NextApiResponse,
+  reason: string
+) {
+  console.error(`[admin/login] ${reason}`);
+  return res
+    .status(500)
+    .json({ error: "Admin login is not configured on the server." });
 }
 
 export default async function handler(
@@ -37,6 +45,13 @@ export default async function handler(
     typeof req.body?.password === "string" ? req.body.password : "";
 
   if (inputEmail || inputPassword) {
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      return respondWithMisconfiguredAdminLogin(
+        res,
+        "email/password login attempted without ADMIN_EMAIL and ADMIN_PASSWORD configured"
+      );
+    }
+
     if (inputEmail === ADMIN_EMAIL && inputPassword === ADMIN_PASSWORD) {
       setAdminSessionCookie(res, ADMIN_EMAIL);
       return res.status(200).json({ success: true });
@@ -47,6 +62,13 @@ export default async function handler(
   const idToken = req.headers.authorization?.split(" ")[1];
   if (!idToken)
     return res.status(401).json({ error: "No Firebase ID token provided" });
+
+  if (!ADMIN_EMAIL) {
+    return respondWithMisconfiguredAdminLogin(
+      res,
+      "Firebase login attempted without ADMIN_EMAIL configured"
+    );
+  }
 
   try {
     const decoded = await firebaseAdminAuth.verifyIdToken(idToken);
