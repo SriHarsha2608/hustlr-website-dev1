@@ -103,17 +103,19 @@ function dimColor(score: number, max: number): string {
 
 /** Parse and render projects reasoning: P1: 20/25 — TD:6/7 (...). CX:5/5 (...). */
 function ProjectReasoning({ reasoning }: { reasoning: string }) {
-  // Split into project blocks (P1:..., P2:...) and the trailing "Weighted avg:"
+  // Split into project blocks (P1:..., P1(50%):...) and trailing "Weighted avg:"
   const weightedAvgMatch = reasoning.match(/Weighted avg:\s*(.+)/);
   const projectBlocks = reasoning
     .replace(/\.\s*Weighted avg:.*$/, "")
-    .split(/(?=P\d+:)/)
+    .split(/(?=P\d+(?:\(\d+%\))?:)/)
     .filter((b) => b.trim());
 
   return (
     <div className="space-y-3">
       {projectBlocks.map((block, i) => {
-        const headerMatch = block.match(/^P(\d+):\s*([\d.]+)\/([\d.]+)\s*—\s*/);
+        const headerMatch = block.match(
+          /^P(\d+)(?:\((\d+)%\))?:\s*([\d.]+)\/([\d.]+)\s*[—\-]\s*/
+        );
         if (!headerMatch) {
           return (
             <p key={i} className="text-xs text-gray-500">
@@ -122,8 +124,9 @@ function ProjectReasoning({ reasoning }: { reasoning: string }) {
           );
         }
         const pNum = headerMatch[1];
-        const pScore = headerMatch[2];
-        const pMax = headerMatch[3];
+        const pWeight = headerMatch[2];
+        const pScore = headerMatch[3];
+        const pMax = headerMatch[4];
         const rest = block.slice(headerMatch[0].length);
 
         // Parse dimensions: TD:6/7 (explanation). CX:5/5 (explanation).
@@ -144,6 +147,11 @@ function ProjectReasoning({ reasoning }: { reasoning: string }) {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-gray-700">
                 Project {pNum}
+                {pWeight && (
+                  <span className="text-gray-400 font-normal ml-1">
+                    ({pWeight}% weight)
+                  </span>
+                )}
               </span>
               <span className="text-xs font-bold text-gray-900">
                 {pScore} / {pMax}
@@ -704,7 +712,7 @@ function FormattedReasoning({
 }) {
   const cat = category.toLowerCase();
 
-  if (cat === "projects" && /P\d+:/.test(reasoning) && /TD:/.test(reasoning))
+  if (cat === "projects" && /P\d+(?:\(\d+%\))?:/.test(reasoning) && /TD:/.test(reasoning))
     return <ProjectReasoning reasoning={reasoning} />;
 
   if (cat === "hackathons" && /H\d+[\(:]/.test(reasoning) && /Ach:/.test(reasoning))
