@@ -1,6 +1,6 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LogOut, MapPin } from "lucide-react";
 import Nav from "@/src/components/Nav";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,7 @@ function queryViewReadonly(router: ReturnType<typeof useRouter>): boolean {
 export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: string }) {
   const router = useRouter();
   const isReadOnlyView = queryViewReadonly(router);
+  const polishSignatureRef = useRef<string | null>(null);
   const [previewTab, setPreviewTab] = useState<"details" | "client">("details");
   const [draft, setDraft] = useState<JobPostDraft | null>(null);
   const [clientProfile, setClientProfile] = useState<ClientProfile>(DEFAULT_CLIENT_PROFILE);
@@ -186,6 +187,91 @@ export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: 
 
     void loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (!draft) return;
+
+    const currentSignature = [draft.title, draft.description, draft.deliverables].join("||");
+    if (polishSignatureRef.current === currentSignature) return;
+
+    let cancelled = false;
+
+    async function polishDraftCopy() {
+      try {
+        polishSignatureRef.current = currentSignature;
+        const res = await fetch("/api/client/job-post/polish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: draft.title,
+            description: draft.description,
+            deliverables: draft.deliverables,
+          }),
+        });
+
+        if (!res.ok || cancelled) return;
+
+        const polished = (await res.json()) as Partial<{
+          title: string;
+          description: string;
+          deliverables: string;
+        }>;
+
+        const nextTitle =
+          typeof polished.title === "string" && polished.title.trim()
+            ? polished.title.trim()
+            : draft.title;
+        const nextDescription =
+          typeof polished.description === "string" && polished.description.trim()
+            ? polished.description.trim()
+            : draft.description;
+        const nextDeliverables =
+          typeof polished.deliverables === "string" && polished.deliverables.trim()
+            ? polished.deliverables.trim()
+            : draft.deliverables;
+
+        if (
+          nextTitle === draft.title &&
+          nextDescription === draft.description &&
+          nextDeliverables === draft.deliverables
+        ) {
+          return;
+        }
+
+        const nextDraft: JobPostDraft = {
+          ...draft,
+          title: nextTitle,
+          description: nextDescription,
+          deliverables: nextDeliverables,
+        };
+
+        polishSignatureRef.current = [nextTitle, nextDescription, nextDeliverables].join("||");
+        setDraft(nextDraft);
+
+        try {
+          window.localStorage.setItem(JOB_POST_DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
+        } catch {
+          // non-critical
+        }
+
+        fetch("/api/client/job-post/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...nextDraft, email: clientEmail }),
+        }).catch(() => {
+          // non-critical
+        });
+      } catch {
+        // non-critical
+      }
+    }
+
+    void polishDraftCopy();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientEmail, draft]);
 
   async function onPostProject() {
     if (isPosting || !draft) return;

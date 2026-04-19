@@ -63,6 +63,13 @@ const PREVIEW_DELAY_MS = 1800;
 const PROJECT_SUBMITTED_REDIRECT_DELAY_MS = 2500;
 const MAX_SKILLS = 20;
 
+type PolishResult = {
+  title: string;
+  description: string;
+  deliverables: string;
+  usedAI: boolean;
+};
+
 /** Inverse of saveDraftToStorage timeline string (handles "Year(s)", "Month(s)", "Week(s)", multiline). */
 function parseTimelineEstimate(estimate: string): {
   years: string;
@@ -445,7 +452,45 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
     setSkills((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function saveDraftToStorage() {
+  async function polishJobPostCopy(input: {
+    title: string;
+    description: string;
+    deliverables: string;
+  }): Promise<PolishResult> {
+    try {
+      const res = await fetch("/api/client/job-post/polish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+
+      if (!res.ok) {
+        return { ...input, usedAI: false };
+      }
+
+      const data = (await res.json()) as Partial<PolishResult>;
+      return {
+        title: typeof data.title === "string" && data.title.trim() ? data.title.trim() : input.title,
+        description:
+          typeof data.description === "string" && data.description.trim()
+            ? data.description.trim()
+            : input.description,
+        deliverables:
+          typeof data.deliverables === "string" && data.deliverables.trim()
+            ? data.deliverables.trim()
+            : input.deliverables,
+        usedAI: data.usedAI === true,
+      };
+    } catch {
+      return { ...input, usedAI: false };
+    }
+  }
+
+  function saveDraftToStorage(overrides?: {
+    title?: string;
+    description?: string;
+    deliverables?: string;
+  }) {
     const upperParts = [
       timelineYears !== "0" ? `${timelineYears} Year${timelineYears === "1" ? "" : "s"}` : "",
       timelineMonths !== "0" ? `${timelineMonths} Month${timelineMonths === "1" ? "" : "s"}` : ""
@@ -466,11 +511,11 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
 
     const draft: JobPostDraft = {
       id: draftId || undefined,
-      title: title.trim(),
+      title: overrides?.title ?? title.trim(),
       category,
-      description: description.trim(),
+      description: overrides?.description ?? description.trim(),
       timelineEstimate,
-      deliverables: deliverables.trim(),
+      deliverables: overrides?.deliverables ?? deliverables.trim(),
       budget,
       minimumSalary: minimumSalary ?? 0,
       skills,
@@ -527,7 +572,7 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
     return null;
   }
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (step === 1) {
@@ -554,7 +599,25 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
       window.clearTimeout(routeTimerRef.current);
     }
 
-    saveDraftToStorage();
+    const polished = await polishJobPostCopy({
+      title: title.trim(),
+      description: description.trim(),
+      deliverables: deliverables.trim(),
+    });
+
+    setTitle(polished.title);
+    setDescription(polished.description);
+    setDeliverables(polished.deliverables);
+
+    saveDraftToStorage({
+      title: polished.title,
+      description: polished.description,
+      deliverables: polished.deliverables,
+    });
+
+    if (polished.usedAI) {
+      toast.success("Grammar and phrasing improved for preview.");
+    }
 
     routeTimerRef.current = window.setTimeout(() => {
       void router.push("/get-started/client/job-post-review");
@@ -585,7 +648,7 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
                 <p className="text-[11px] font-sans uppercase tracking-wide text-black/60">Loading...</p>
               </div>
               <p className="mx-auto mt-8 max-w-[680px] font-sans text-lg text-black/75 sm:text-2xl">
-                We&apos;re formatting your project description so students can understand it clearly.
+                We&apos;re polishing your project description and deliverables so students can understand them clearly.
               </p>
             </div>
           </section>

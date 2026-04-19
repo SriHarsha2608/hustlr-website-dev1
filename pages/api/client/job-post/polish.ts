@@ -68,6 +68,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       "You are a writing assistant for freelance job posts.",
       "Correct grammar, spelling, punctuation, and sentence clarity.",
       "Do not change intent, scope, budget, or timeline.",
+      "Do not add new facts, requirements, or examples that are not present in input.",
+      "Preserve deliverables as concise bullet-style lines when multiple points are present.",
       "Keep the tone professional and concise.",
       "Return valid JSON only with keys: title, description, deliverables.",
       "If any field is empty, return it unchanged.",
