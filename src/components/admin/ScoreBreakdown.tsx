@@ -103,17 +103,19 @@ function dimColor(score: number, max: number): string {
 
 /** Parse and render projects reasoning: P1: 20/25 — TD:6/7 (...). CX:5/5 (...). */
 function ProjectReasoning({ reasoning }: { reasoning: string }) {
-  // Split into project blocks (P1:..., P2:...) and the trailing "Weighted avg:"
+  // Split into project blocks (P1:..., P1(50%):...) and trailing "Weighted avg:"
   const weightedAvgMatch = reasoning.match(/Weighted avg:\s*(.+)/);
   const projectBlocks = reasoning
     .replace(/\.\s*Weighted avg:.*$/, "")
-    .split(/(?=P\d+:)/)
+    .split(/(?=P\d+(?:\(\d+%\))?:)/)
     .filter((b) => b.trim());
 
   return (
     <div className="space-y-3">
       {projectBlocks.map((block, i) => {
-        const headerMatch = block.match(/^P(\d+):\s*([\d.]+)\/([\d.]+)\s*—\s*/);
+        const headerMatch = block.match(
+          /^P(\d+)(?:\((\d+)%\))?:\s*([\d.]+)\/([\d.]+)\s*[—\-]\s*/
+        );
         if (!headerMatch) {
           return (
             <p key={i} className="text-xs text-gray-500">
@@ -122,8 +124,9 @@ function ProjectReasoning({ reasoning }: { reasoning: string }) {
           );
         }
         const pNum = headerMatch[1];
-        const pScore = headerMatch[2];
-        const pMax = headerMatch[3];
+        const pWeight = headerMatch[2];
+        const pScore = headerMatch[3];
+        const pMax = headerMatch[4];
         const rest = block.slice(headerMatch[0].length);
 
         // Parse dimensions: TD:6/7 (explanation). CX:5/5 (explanation).
@@ -144,6 +147,11 @@ function ProjectReasoning({ reasoning }: { reasoning: string }) {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-gray-700">
                 Project {pNum}
+                {pWeight && (
+                  <span className="text-gray-400 font-normal ml-1">
+                    ({pWeight}% weight)
+                  </span>
+                )}
               </span>
               <span className="text-xs font-bold text-gray-900">
                 {pScore} / {pMax}
@@ -293,17 +301,19 @@ function HackathonReasoning({ reasoning }: { reasoning: string }) {
 /** ── Skills ── Category "X": N matched [A,B] → x/5. Project verification: M confirmed ... → y/5. Total: z/10 */
 function SkillsReasoning({ reasoning }: { reasoning: string }) {
   const catMatch = reasoning.match(
-    /Category "([^"]+)":\s*(\d+)\s*skill\(s\)\s*matched\s*\[([^\]]*)\]\s*→\s*(\d+)\/5/
+    /Category "([^"]+)"(?:\s*resolved\s*as\s*"([^"]+)")?:\s*(\d+)\s*skill\(s\)\s*matched\s*\[([^\]]*)\]\s*(?:→|\?|->)\s*(\d+)\/5/
   );
   const projMatch = reasoning.match(
-    /Project verification:\s*(\d+)\s*skill\(s\)\s*confirmed\s*in\s*top\s*(\d+)\s*project\(s\)\s*\[([^\]]*)\]\s*→\s*(\d+)\/5/
+    /Project verification:\s*(\d+)\s*skill\(s\)\s*confirmed\s*in\s*top\s*(\d+)\s*project\(s\)\s*\[([^\]]*)\]\s*(?:→|\?|->)\s*(\d+)\/5/
   );
   const totalMatch = reasoning.match(/Total:\s*(\d+)\/(\d+)/);
 
   if (!catMatch) return <DefaultReasoning reasoning={reasoning} />;
 
-  const categoryName = catMatch[1];
-  const matchedSkills = catMatch[3] ? catMatch[3].split(",").map((s) => s.trim()).filter(Boolean) : [];
+  const categoryName = catMatch[2]
+    ? `${catMatch[1]} -> ${catMatch[2]}`
+    : catMatch[1];
+  const matchedSkills = catMatch[4] ? catMatch[4].split(",").map((s) => s.trim()).filter(Boolean) : [];
   const verifiedSkills = projMatch && projMatch[3] ? projMatch[3].split(",").map((s) => s.trim()).filter(Boolean) : [];
 
   return (
@@ -315,8 +325,8 @@ function SkillsReasoning({ reasoning }: { reasoning: string }) {
             Category Match
             <span className="font-normal text-gray-400 ml-1">"{categoryName}"</span>
           </span>
-          <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${dimColor(parseInt(catMatch[4]), 5)}`}>
-            {catMatch[4]}/5
+          <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${dimColor(parseInt(catMatch[5]), 5)}`}>
+            {catMatch[5]}/5
           </span>
         </div>
         {matchedSkills.length > 0 ? (
@@ -510,7 +520,7 @@ function ResearchReasoning({ reasoning }: { reasoning: string }) {
     );
   }
 
-  const bestMatch = reasoning.match(/Best:\s*(.+?)\s*→\s*(\d+)\/(\d+)/);
+  const bestMatch = reasoning.match(/Best:\s*(.+?)\s*(?:→|\?|->)\s*(\d+)\/(\d+)/);
   const papersMatch = reasoning.match(/(\d+)\s*paper\(s\)\s*total/);
 
   if (!bestMatch) return <DefaultReasoning reasoning={reasoning} />;
@@ -704,7 +714,7 @@ function FormattedReasoning({
 }) {
   const cat = category.toLowerCase();
 
-  if (cat === "projects" && /P\d+:/.test(reasoning) && /TD:/.test(reasoning))
+  if (cat === "projects" && /P\d+(?:\(\d+%\))?:/.test(reasoning) && /TD:/.test(reasoning))
     return <ProjectReasoning reasoning={reasoning} />;
 
   if (cat === "hackathons" && /H\d+[\(:]/.test(reasoning) && /Ach:/.test(reasoning))
@@ -716,16 +726,16 @@ function FormattedReasoning({
   if (cat === "internships")
     return <InternshipsReasoning reasoning={reasoning} />;
 
-  if (cat === "opensource")
+  if (cat === "open_source" || cat === "opensource")
     return <OpenSourceReasoning reasoning={reasoning} />;
 
   if (cat === "research")
     return <ResearchReasoning reasoning={reasoning} />;
 
-  if (cat === "cpplatform")
+  if (cat === "cp_platform" || cat === "cpplatform")
     return <CpPlatformReasoning reasoning={reasoning} />;
 
-  if (cat === "cpcompetitions")
+  if (cat === "cp_competitions" || cat === "cpcompetitions")
     return <CpCompetitionsReasoning reasoning={reasoning} />;
 
   if (cat === "cgpa")

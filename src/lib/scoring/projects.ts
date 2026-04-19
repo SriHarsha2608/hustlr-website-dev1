@@ -144,17 +144,17 @@ export async function scoreProjects(
   } else if (scored.length === 2) {
     raw = Math.round(0.6 * scored[0].total + 0.4 * scored[1].total);
     detailParts = [
-      `P1(60%): ${scored[0].total}/25`,
-      `P2(40%): ${scored[1].total}/25`,
+      `P1(60%): ${scored[0].total}/25 — ${scored[0].reasoning}`,
+      `P2(40%): ${scored[1].total}/25 — ${scored[1].reasoning}`,
     ];
   } else {
     raw = Math.round(
       0.5 * scored[0].total + 0.3 * scored[1].total + 0.2 * scored[2].total
     );
     detailParts = [
-      `P1(50%): ${scored[0].total}/25`,
-      `P2(30%): ${scored[1].total}/25`,
-      `P3(20%): ${scored[2].total}/25`,
+      `P1(50%): ${scored[0].total}/25 — ${scored[0].reasoning}`,
+      `P2(30%): ${scored[1].total}/25 — ${scored[1].reasoning}`,
+      `P3(20%): ${scored[2].total}/25 — ${scored[2].reasoning}`,
     ];
   }
 
