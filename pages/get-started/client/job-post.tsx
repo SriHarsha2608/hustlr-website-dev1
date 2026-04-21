@@ -70,6 +70,33 @@ type PolishResult = {
   usedAI: boolean;
 };
 
+function normalizeDeliverablesToBulletLines(input: string): string[] {
+  const normalized = input.replace(/\r\n/g, "\n").trim();
+  if (!normalized) return [];
+
+  const explicitLines = normalized
+    .split("\n")
+    .map((line) => line.replace(/^[-*•]\s*/, "").trim())
+    .filter(Boolean);
+
+  if (explicitLines.length > 1) {
+    return explicitLines;
+  }
+
+  const singleLine = explicitLines[0] ?? normalized;
+  const sentenceParts = singleLine
+    .split(".")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => (part.endsWith(".") ? part : `${part}.`));
+
+  if (sentenceParts.length > 1) {
+    return sentenceParts;
+  }
+
+  return explicitLines.length ? explicitLines : [singleLine];
+}
+
 /** Inverse of saveDraftToStorage timeline string (handles "Year(s)", "Month(s)", "Week(s)", multiline). */
 function parseTimelineEstimate(estimate: string): {
   years: string;
@@ -621,14 +648,18 @@ export default function ClientJobPostPage({ clientEmail }: { clientEmail: string
       deliverables: deliverables.trim(),
     });
 
+    const normalizedDeliverables = normalizeDeliverablesToBulletLines(
+      polished.deliverables,
+    ).join("\n");
+
     setTitle(polished.title);
     setDescription(polished.description);
-    setDeliverables(polished.deliverables);
+    setDeliverables(normalizedDeliverables);
 
     saveDraftToStorage({
       title: polished.title,
       description: polished.description,
-      deliverables: polished.deliverables,
+      deliverables: normalizedDeliverables,
     });
 
     if (polished.usedAI) {

@@ -56,6 +56,33 @@ function queryViewReadonly(router: ReturnType<typeof useRouter>): boolean {
   return false;
 }
 
+function splitDeliverablesByFullStop(input: string): string[] {
+  const normalized = input.replace(/\r\n/g, "\n").trim();
+  if (!normalized) return [];
+
+  const explicitLines = normalized
+    .split("\n")
+    .map((line) => line.replace(/^[-*•]\s*/, "").trim())
+    .filter(Boolean);
+
+  if (explicitLines.length > 1) {
+    return explicitLines;
+  }
+
+  const singleLine = explicitLines[0] ?? normalized;
+  const sentenceParts = singleLine
+    .split(".")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => (part.endsWith(".") ? part : `${part}.`));
+
+  if (sentenceParts.length > 1) {
+    return sentenceParts;
+  }
+
+  return explicitLines.length ? explicitLines : [singleLine];
+}
+
 function parseStoredJobPostDraft(raw: string | null): JobPostDraft | null {
   if (!raw) return null;
 
@@ -336,11 +363,7 @@ export default function ClientJobPostReviewPage({ clientEmail }: { clientEmail: 
   const skillTags = useMemo(() => (draft?.skills ?? []).slice(0, 3), [draft?.skills]);
 
   const deliverableItems = useMemo(
-    () =>
-      (draft?.deliverables ?? "")
-        .split("\n")
-        .map((item) => item.replace(/^[-*•]\s*/, "").trim())
-        .filter(Boolean),
+    () => splitDeliverablesByFullStop(draft?.deliverables ?? ""),
     [draft?.deliverables],
   );
 
